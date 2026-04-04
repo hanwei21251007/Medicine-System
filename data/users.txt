@@ -1,8 +1,15 @@
-# type,id/medical_id,password,name,role,id_card
-STAFF,1001,admin123,管理员张,1,
-STAFF,1002,doctor123,医生李,2,
-STAFF,1003,doctor456,医生陈,2,
-STAFF,1004,pharmacist123,药剂师王,3,
-PATIENT,20001,patient123,患者赵,4,130101200001010010
-PATIENT,20002,patient456,患者钱,4,110101199003072817
-PATIENT,20003,patient789,患者孙,4,440301198807154321
+# type,id,password,name,role,title,dept_id,id_card
+STAFF,1001,admin123,管理员张,1,0,0,
+STAFF,1002,doctor123,李明,2,2,1,
+STAFF,1003,doctor456,陈华,2,3,1,
+STAFF,1004,doctor789,王强,2,4,2,
+STAFF,1005,doctor321,赵磊,2,1,2,
+STAFF,1006,doctor654,刘芳,2,2,3,
+STAFF,1007,doctor987,孙伟,2,3,4,
+STAFF,1008,doctor111,周涛,2,4,5,
+STAFF,1009,pharm123,药剂师吴,3,0,0,
+PATIENT,20001,patient123,患者赵,4,0,0,130101200001010010
+PATIENT,20002,patient456,患者钱,4,0,0,110101199003072817
+PATIENT,20003,patient789,患者孙,4,0,0,440301198807154321
+PATIENT,20004,patient410,蒲草,4,0,0,283749372039728346
+
