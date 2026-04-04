@@ -65,9 +65,10 @@ int staff_login(UserRole user_role) {
 
             current_user.is_logged_in = 1;
             current_user.user_id      = cur->id;
-            strncpy(current_user.user_name, cur->name,
-                    sizeof(current_user.user_name) - 1);
+            strncpy(current_user.user_name, cur->name,sizeof(current_user.user_name) - 1);
             current_user.user_role = cur->role;
+            current_user.dept_id   = cur->dept_id;
+            current_user.title     = cur->title;
 
             printf("\n登录成功！欢迎 %s\n", current_user.user_name);
             printf("按任意键继续...");
@@ -97,6 +98,30 @@ int patient_login() {
     printf("\n请输入身份证号: ");
     scanf("%18s", id_card_input);
     getchar();
+
+    // 验证身份证号格式：必须是18位数字（最后一位可以是X）
+    int id_len = strlen(id_card_input);
+    if (id_len != 18) {
+        printf("\n身份证号格式错误，应为18位，请重新输入。\n");
+        printf("按任意键返回...");
+        getchar();
+        return 0;
+    }
+    for (int i = 0; i < 17; i++) {
+        if (id_card_input[i] < '0' || id_card_input[i] > '9') {
+            printf("\n身份证号格式错误，前17位必须为数字。\n");
+            printf("按任意键返回...");
+            getchar();
+            return 0;
+        }
+    }
+    if (id_card_input[17] != 'X' && id_card_input[17] != 'x' &&
+        (id_card_input[17] < '0' || id_card_input[17] > '9')) {
+        printf("\n身份证号格式错误，最后一位必须为数字或X。\n");
+        printf("按任意键返回...");
+        getchar();
+        return 0;
+    }
 
     // 查链表判断是否注册过
     PatientNode *cur = patient_list;

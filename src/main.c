@@ -2,6 +2,7 @@
 #include "../include/structs.h"
 
 // 函数声明，定义在 login.c
+
 int  show_login_menu();
 int  staff_login(UserRole user_role);
 int  patient_login();
@@ -9,17 +10,19 @@ void show_main_menu();
 void user_logout();
 
 // 函数声明，定义在 file_io.c
-void load_users_from_file();
-void save_users_to_file();
+
+void load_all();
+void save_all();
 void free_all_lists();
 
 // current_user 定义在 login.c
+
 extern CurrentUser current_user;
 
 
 int main() {
-    // 启动时从文件载入数据到链表
-    load_users_from_file();
+    // 启动时加载所有数据文件到链表
+    load_all();
 
     while (1) {
 
@@ -33,7 +36,7 @@ int main() {
                 case 3: staff_login(ROLE_PHARMACIST); break;
                 case 4: patient_login();              break;
                 case 5:
-                    save_users_to_file();
+                    save_all();
                     free_all_lists();
                     printf("感谢使用医疗管理系统，再见！\n");
                     return 0;
@@ -62,28 +65,28 @@ int main() {
             switch (current_user.user_role) {
 
                 case ROLE_ADMIN:
-                    // TODO: 各管理员功能模块完成后在此替换
+                    // TODO: 管理员功能模块完成后在此替换
                     printf("\n功能开发中...\n");
                     printf("按任意键继续...");
                     getchar();
                     break;
 
                 case ROLE_DOCTOR:
-                    // TODO: 各医生功能模块完成后在此替换
+                    // TODO: 医生功能模块完成后在此替换
                     printf("\n功能开发中...\n");
                     printf("按任意键继续...");
                     getchar();
                     break;
 
                 case ROLE_PHARMACIST:
-                    // TODO: 各药剂师功能模块完成后在此替换
+                    // TODO: 药剂师功能模块完成后在此替换
                     printf("\n功能开发中...\n");
                     printf("按任意键继续...");
                     getchar();
                     break;
 
                 case ROLE_PATIENT:
-                    // TODO: 各患者功能模块完成后在此替换
+                    // TODO: 患者功能模块完成后在此替换
                     printf("\n功能开发中...\n");
                     printf("按任意键继续...");
                     getchar();

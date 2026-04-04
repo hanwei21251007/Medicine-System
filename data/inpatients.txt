@@ -1,0 +1,1 @@
+# inpatient_id,patient_id,doctor_id,dept_id,room_id,bed_num,admit_date,discharge_date,days,total_fee,is_discharged

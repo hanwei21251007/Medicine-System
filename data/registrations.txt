@@ -1,0 +1,1 @@
+# reg_id,patient_id,doctor_id,dept_id,date,reg_fee,queue_num,status
