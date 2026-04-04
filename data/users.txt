@@ -1,0 +1,8 @@
+# type,id/medical_id,password,name,role,id_card
+STAFF,1001,admin123,管理员张,1,
+STAFF,1002,doctor123,医生李,2,
+STAFF,1003,doctor456,医生陈,2,
+STAFF,1004,pharmacist123,药剂师王,3,
+PATIENT,20001,patient123,患者赵,4,130101200001010010
+PATIENT,20002,patient456,患者钱,4,110101199003072817
+PATIENT,20003,patient789,患者孙,4,440301198807154321
