@@ -108,6 +108,8 @@ typedef struct RegistrationNode {
     char   date[25];
     float  reg_fee;              // 实际挂号费
     int    queue_num;            // 排队号
+    int   is_cancelled;    // 0=正常 1=已作废
+    char  cancel_time[25]; // 作废时间
     ItemStatus status;
     struct RegistrationNode *next;
 } RegistrationNode;
@@ -174,6 +176,18 @@ typedef struct InpatientNode {
     int   is_discharged;         // 0=在院 1=已出院
     struct InpatientNode *next;
 } InpatientNode;
+
+// 住院申请节点
+
+typedef struct InpatientApplyNode {
+    int  apply_id;
+    int  patient_id;
+    int  doctor_id;
+    int  dept_id;
+    char apply_time[25];
+    int  is_approved;      // 0=待审核 1=已批准 2=已拒绝
+    struct InpatientApplyNode *next;
+} InpatientApplyNode;
  
 //当前登录用户（全局唯一）
 

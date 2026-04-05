@@ -14,6 +14,7 @@
 #define FILE_EXAM_ORDERS    "data/exam_orders.txt"
 #define FILE_PRESCRIPTIONS  "data/prescriptions.txt"
 #define FILE_INPATIENTS     "data/inpatients.txt"
+#define FILE_INPATIENT_APPLY "data/inpatient_apply.txt"
 
 // 链表头指针（全局）
 StaffNode         *staff_list        = NULL;
@@ -27,7 +28,7 @@ MedicalRecordNode *record_list       = NULL;
 ExamOrderNode     *exam_order_list   = NULL;
 PrescriptionNode  *prescription_list = NULL;
 InpatientNode     *inpatient_list    = NULL;
-
+InpatientApplyNode *inpatient_apply_list = NULL;
 
 // 职称相关工具函数
 
@@ -340,10 +341,11 @@ void load_registrations() {
         if (node == NULL) continue;
 
         int status;
-        if (sscanf(line, "%d,%d,%d,%d,%19[^,],%f,%d,%d",
-                   &node->reg_id, &node->patient_id, &node->doctor_id,
-                   &node->dept_id, node->date, &node->reg_fee,
-                   &node->queue_num, &status) == 8) {
+       if (sscanf(line, "%d,%d,%d,%d,%24[^,],%f,%d,%d,%d,%24s",
+           &node->reg_id, &node->patient_id, &node->doctor_id,
+           &node->dept_id, node->date, &node->reg_fee,
+           &node->queue_num, &status,
+           &node->is_cancelled, node->cancel_time) == 10)  {
             node->status = (ItemStatus)status;
             node->next = NULL;
             if (reg_list == NULL) {
@@ -368,10 +370,11 @@ void save_registrations() {
 
     RegistrationNode *cur = reg_list;
     while (cur != NULL) {
-        fprintf(fp, "%d,%d,%d,%d,%s,%.1f,%d,%d\n",
-                cur->reg_id, cur->patient_id, cur->doctor_id,
-                cur->dept_id, cur->date, cur->reg_fee,
-                cur->queue_num, (int)cur->status);
+        fprintf(fp, "%d,%d,%d,%d,%s,%.1f,%d,%d,%d,%s\n",
+        cur->reg_id, cur->patient_id, cur->doctor_id,
+        cur->dept_id, cur->date, cur->reg_fee,
+        cur->queue_num, (int)cur->status,
+        cur->is_cancelled, cur->cancel_time);
         cur = cur->next;
     }
     fclose(fp);
@@ -585,6 +588,53 @@ void save_inpatients() {
     fclose(fp);
 }
 
+void load_inpatient_apply() {
+    FILE *fp = fopen(FILE_INPATIENT_APPLY, "r");
+    if (fp == NULL) return;
+
+    char line[256];
+    while (fgets(line, sizeof(line), fp) != NULL) {
+        if (line[0] == '#' || line[0] == '\n' || line[0] == '\r')
+            continue;
+        line[strcspn(line, "\r\n")] = '\0';
+
+        InpatientApplyNode *node = (InpatientApplyNode *)malloc(sizeof(InpatientApplyNode));
+        if (node == NULL) continue;
+
+        if (sscanf(line, "%d,%d,%d,%d,%24[^,],%d",
+                   &node->apply_id, &node->patient_id, &node->doctor_id,
+                   &node->dept_id, node->apply_time, &node->is_approved) == 6) {
+            node->next = NULL;
+            if (inpatient_apply_list == NULL) {
+                inpatient_apply_list = node;
+            } else {
+                InpatientApplyNode *cur = inpatient_apply_list;
+                while (cur->next != NULL) cur = cur->next;
+                cur->next = node;
+            }
+        } else {
+            free(node);
+        }
+    }
+    fclose(fp);
+}
+
+void save_inpatient_apply() {
+    FILE *fp = fopen(FILE_INPATIENT_APPLY, "w");
+    if (fp == NULL) return;
+
+    fprintf(fp, "# apply_id,patient_id,doctor_id,dept_id,apply_time,is_approved\n");
+
+    InpatientApplyNode *cur = inpatient_apply_list;
+    while (cur != NULL) {
+        fprintf(fp, "%d,%d,%d,%d,%s,%d\n",
+                cur->apply_id, cur->patient_id, cur->doctor_id,
+                cur->dept_id, cur->apply_time, cur->is_approved);
+        cur = cur->next;
+    }
+    fclose(fp);
+}
+
 // ID 自增生成器
 
 int generate_medical_id() {
@@ -647,6 +697,16 @@ int generate_inpatient_id() {
     return max + 1;
 }
 
+int generate_apply_id() {
+    int max = 0;
+    InpatientApplyNode *cur = inpatient_apply_list;
+    while (cur != NULL) {
+        if (cur->apply_id > max) max = cur->apply_id;
+        cur = cur->next;
+    }
+    return max + 1;
+}
+
 // 获取指定科室当前排队人数
 
 int get_queue_count(int dept_id) {
@@ -673,6 +733,7 @@ void load_all() {
     load_exam_orders();
     load_prescriptions();
     load_inpatients();
+    load_inpatient_apply();
 }
 
 void save_all() {
@@ -684,6 +745,7 @@ void save_all() {
     save_exam_orders();
     save_prescriptions();
     save_inpatients();
+    save_inpatient_apply();
 }
 
 void free_all_lists() {
@@ -774,4 +836,12 @@ void free_all_lists() {
         free(tmp);
     }
     inpatient_list = NULL;
+
+    InpatientApplyNode *ia = inpatient_apply_list;
+    while (ia != NULL) {
+        InpatientApplyNode *tmp = ia;
+        ia = ia->next;
+        free(tmp);
+    }
+    inpatient_apply_list = NULL;
 }

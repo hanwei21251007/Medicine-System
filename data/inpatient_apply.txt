@@ -1,0 +1,2 @@
+# apply_id,patient_id,doctor_id,dept_id,apply_time,is_approved
+1,20004,1011,4,2026-04-05 19:57:56,1

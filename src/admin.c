@@ -21,11 +21,12 @@ extern ExamOrderNode     *exam_order_list;
 extern PrescriptionNode  *prescription_list;
 extern InpatientNode     *inpatient_list;
 extern CurrentUser        current_user;
+extern InpatientApplyNode *inpatient_apply_list;
 
 extern void save_all();
+extern int generate_apply_id();
 extern int  generate_inpatient_id();
 extern const char *get_title_name(DoctorTitle title);
-
 
 // ════════════════════════════════════════
 // 内部工具函数
@@ -77,6 +78,15 @@ static const char *get_patient_name(int medical_id) {
         cur = cur->next;
     }
     return "未知患者";
+}
+
+static const char *get_doctor_name(int doctor_id) {
+    StaffNode *cur = staff_list;
+    while (cur != NULL) {
+        if (cur->id == doctor_id) return cur->name;
+        cur = cur->next;
+    }
+    return "未知医生";
 }
 
 // 根据病房ID查每日费用
@@ -287,6 +297,168 @@ void admin_manage_drugs() {
     getchar();
 }
 
+void admin_review_apply() {
+    system("cls");
+    printf("╔════════════════════════════════════════╗\n");
+    printf("║            住院申请审核                ║\n");
+    printf("╚════════════════════════════════════════╝\n\n");
+
+    printf("%-6s %-10s %-10s %-16s %-22s %-8s\n",
+           "申请ID", "病历号", "申请医生", "科室", "申请时间", "状态");
+    printf("--------------------------------------------------------------------------\n");
+
+    InpatientApplyNode *cur = inpatient_apply_list;
+    int count = 0;
+    while (cur != NULL) {
+        char *status_str = "待审核";
+        if (cur->is_approved == 1) status_str = "已批准";
+        if (cur->is_approved == 2) status_str = "已拒绝";
+        printf("%-6d %-10d %-10s %-16s %-22s %-8s\n",
+               cur->apply_id, cur->patient_id,
+               get_doctor_name(cur->doctor_id),
+               get_dept_name(cur->dept_id),
+               cur->apply_time, status_str);
+        count++;
+        cur = cur->next;
+    }
+    if (count == 0) {
+        printf("暂无住院申请。\n");
+        printf("按任意键返回...");
+        getchar();
+        return;
+    }
+
+    // 查找待审核申请
+    InpatientApplyNode *target = NULL;
+    while (target == NULL) {
+        printf("\n输入要审核的申请ID (0=返回): ");
+        int apply_id;
+        if (scanf("%d", &apply_id) != 1) {
+            clear_input();
+            printf("输入无效。\n");
+            if (!ask_retry()) return;
+            continue;
+        }
+        clear_input();
+        if (apply_id == 0) return;
+
+        InpatientApplyNode *p = inpatient_apply_list;
+        while (p != NULL) {
+            if (p->apply_id == apply_id) { target = p; break; }
+            p = p->next;
+        }
+        if (target == NULL) {
+            printf("未找到该申请。\n");
+            if (!ask_retry()) return;
+        }
+    }
+
+    if (target->is_approved != 0) {
+        printf("该申请已处理过，无需重复操作。\n");
+        printf("按任意键返回...");
+        getchar();
+        return;
+    }
+
+    printf("病历号：%d，申请医生：%s，科室：%s\n",
+           target->patient_id,
+           get_doctor_name(target->doctor_id),
+           get_dept_name(target->dept_id));
+    printf("1. 批准  2. 拒绝  0. 取消\n");
+    printf("请选择: ");
+
+    int decision = -1;
+    while (decision < 0) {
+        if (scanf("%d", &decision) != 1 ||
+            (decision != 0 && decision != 1 && decision != 2)) {
+            clear_input();
+            printf("输入无效。\n");
+            if (!ask_retry()) return;
+            decision = -1;
+            continue;
+        }
+        clear_input();
+    }
+
+    if (decision == 0) {
+        printf("已取消。\n");
+        printf("按任意键返回...");
+        getchar();
+        return;
+    }
+
+    if (decision == 2) {
+        target->is_approved = 2;
+        save_all();
+        printf("已拒绝该住院申请。\n");
+        printf("按任意键返回...");
+        getchar();
+        return;
+    }
+
+    // 批准：走住院登记逻辑，分配床位
+    target->is_approved = 1;
+
+    RoomNode *best_room = NULL;
+    RoomNode *room = room_list;
+    while (room != NULL) {
+        if (room->dept_id == target->dept_id &&
+            room->current < room->capacity) {
+            if (best_room == NULL) {
+                best_room = room;
+            } else if (room->current > best_room->current) {
+                best_room = room;
+            }
+        }
+        room = room->next;
+    }
+
+    if (best_room == NULL) {
+        printf("该科室暂无空余床位，申请已批准但暂缓入院。\n");
+        save_all();
+        printf("按任意键返回...");
+        getchar();
+        return;
+    }
+
+    InpatientNode *node = (InpatientNode *)malloc(sizeof(InpatientNode));
+    if (node == NULL) {
+        printf("内存分配失败。\n");
+        printf("按任意键返回...");
+        getchar();
+        return;
+    }
+
+    node->inpatient_id  = generate_inpatient_id();
+    node->patient_id    = target->patient_id;
+    node->doctor_id     = target->doctor_id;
+    node->dept_id       = target->dept_id;
+    node->room_id       = best_room->room_id;
+    node->bed_num       = best_room->current + 1;
+    node->days          = 0;
+    node->total_fee     = 0.0f;
+    node->is_discharged = 0;
+    get_today(node->admit_date);
+    strcpy(node->discharge_date, "-");
+    node->next = NULL;
+
+    if (inpatient_list == NULL) {
+        inpatient_list = node;
+    } else {
+        InpatientNode *tail = inpatient_list;
+        while (tail->next != NULL) tail = tail->next;
+        tail->next = node;
+    }
+
+    best_room->current += 1;
+    save_all();
+
+    printf("批准成功！已自动完成住院登记。\n");
+    printf("住院ID：%d，病房：%d号，床位：%d号\n",
+           node->inpatient_id, node->room_id, node->bed_num);
+    printf("按任意键返回...");
+    getchar();
+}
 
 // ════════════════════════════════════════
 // 员工信息管理
@@ -545,7 +717,7 @@ void admin_statistics() {
         int count = 0;
         RegistrationNode *reg = reg_list;
         while (reg != NULL) {
-            if (reg->dept_id == dept->dept_id) count++;
+            if (reg->dept_id == dept->dept_id && reg->is_cancelled == 0) count++;
             reg = reg->next;
         }
         printf("%-16s %-10d\n", dept->dept_name, count);
@@ -604,7 +776,7 @@ void admin_statistics() {
     float reg_income = 0.0f;
     RegistrationNode *reg = reg_list;
     while (reg != NULL) {
-        if (reg->status == STATUS_PENDING_DO || reg->status == STATUS_DONE)
+        if ((reg->status == STATUS_PENDING_DO || reg->status == STATUS_DONE)&& reg->is_cancelled == 0)
             reg_income += reg->reg_fee;
         reg = reg->next;
     }
@@ -946,6 +1118,7 @@ void admin_menu() {
         printf("║  6. 住院登记                           ║\n");
         printf("║  7. 在院患者列表                       ║\n");
         printf("║  8. 出院登记                           ║\n");
+        printf("║  9. 住院申请审核                       ║\n");
         printf("║  0. 注销登录                           ║\n");
         printf("╚════════════════════════════════════════╝\n");
         printf("\n请输入您的选择: ");
@@ -962,7 +1135,7 @@ void admin_menu() {
 
         if (choice == 0) break;
 
-        if (choice < 0 || choice > 8) {
+        if (choice < 0 || choice > 9) {
             printf("输入无效，请重新输入。\n");
             printf("按任意键继续...");
             getchar();
@@ -978,6 +1151,7 @@ void admin_menu() {
             case 6: admin_admit_patient();     break;
             case 7: admin_view_inpatients();   break;
             case 8: admin_discharge_patient(); break;
+            case 9: admin_review_apply(); break;
         }
     }
 }

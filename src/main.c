@@ -9,6 +9,8 @@ void user_logout();
 
 // 函数声明，定义在各模块
 void admin_menu(void);
+void patient_menu(void);
+void doctor_menu(void);
 // void doctor_menu(void);      // 队友完成后取消注释
 // void pharmacy_menu(void);    // 队友完成后取消注释
 // void patient_menu(void);     // 队友完成后取消注释
@@ -57,11 +59,7 @@ int main() {
                     admin_menu();
                     break;
                 case ROLE_DOCTOR:
-                    // doctor_menu();   // 队友完成后取消注释
-                    printf("\n医生模块开发中...\n");
-                    printf("按任意键继续...");
-                    getchar();
-                    user_logout();
+                    doctor_menu();
                     break;
                 case ROLE_PHARMACIST:
                     // pharmacy_menu(); // 队友完成后取消注释
@@ -71,11 +69,7 @@ int main() {
                     user_logout();
                     break;
                 case ROLE_PATIENT:
-                    // patient_menu();  // 队友完成后取消注释
-                    printf("\n患者模块开发中...\n");
-                    printf("按任意键继续...");
-                    getchar();
-                    user_logout();
+                    patient_menu();
                     break;
                 default:
                     break;
