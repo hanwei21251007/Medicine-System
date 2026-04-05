@@ -37,6 +37,11 @@ int show_login_menu() {
     int choice;
     scanf("%d", &choice);
     getchar();
+    if (choice < 1 || choice > 5) {
+    printf("\n无效选择，请输入 1-5 之间的数字。\n");
+    printf("按任意键继续...");
+    getchar();
+    }
     return choice;
 }
 

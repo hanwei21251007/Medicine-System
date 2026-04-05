@@ -1,1 +1,3 @@
 # inpatient_id,patient_id,doctor_id,dept_id,room_id,bed_num,admit_date,discharge_date,days,total_fee,is_discharged
+1,20001,1002,1,1,1,2026-04-05,2026-04-05,1,80.0,1
+2,20002,1006,3,11,1,2026-04-05,2026-04-05,0,24.0,1

@@ -105,7 +105,7 @@ typedef struct RegistrationNode {
     int    patient_id;           // 病历号
     int    doctor_id;            // 医生工号
     int    dept_id;
-    char   date[20];
+    char   date[25];
     float  reg_fee;              // 实际挂号费
     int    queue_num;            // 排队号
     ItemStatus status;
@@ -120,7 +120,7 @@ typedef struct MedicalRecordNode {
     int    doctor_id;
     int    dept_id;
     char   diagnosis[200];       // 诊断内容
-    char   date[20];
+    char   date[25];
     struct MedicalRecordNode *next;
 } MedicalRecordNode;
 
@@ -167,8 +167,8 @@ typedef struct InpatientNode {
     int   dept_id;
     int   room_id;
     int   bed_num;               // 床位编号
-    char  admit_date[20];        // 入院日期
-    char  discharge_date[20];    // 出院日期，未出院填 "-"
+    char  admit_date[25];        // 入院日期
+    char  discharge_date[25];    // 出院日期，未出院填 "-"
     int   days;                  // 住院天数，出院时计算
     float total_fee;             // 住院总费用
     int   is_discharged;         // 0=在院 1=已出院

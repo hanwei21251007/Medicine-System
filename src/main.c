@@ -2,21 +2,23 @@
 #include "../include/structs.h"
 
 // 函数声明，定义在 login.c
-
 int  show_login_menu();
 int  staff_login(UserRole user_role);
 int  patient_login();
-void show_main_menu();
 void user_logout();
 
-// 函数声明，定义在 file_io.c
+// 函数声明，定义在各模块
+void admin_menu(void);
+// void doctor_menu(void);      // 队友完成后取消注释
+// void pharmacy_menu(void);    // 队友完成后取消注释
+// void patient_menu(void);     // 队友完成后取消注释
 
+// 函数声明，定义在 file_io.c
 void load_all();
 void save_all();
 void free_all_lists();
 
 // current_user 定义在 login.c
-
 extern CurrentUser current_user;
 
 
@@ -48,52 +50,39 @@ int main() {
             }
         }
 
-        // 已登录：显示功能菜单
-        while (current_user.is_logged_in) {
-            show_main_menu();
-
-            int choice;
-            scanf("%d", &choice);
-            getchar();
-
-            if (choice == 0) {
-                user_logout();
-                break;
-            }
-
-            // 根据角色分发功能
+        // 已登录：直接进入对应角色的功能模块
+        if (current_user.is_logged_in) {
             switch (current_user.user_role) {
-
                 case ROLE_ADMIN:
-                    // TODO: 管理员功能模块完成后在此替换
-                    printf("\n功能开发中...\n");
-                    printf("按任意键继续...");
-                    getchar();
+                    admin_menu();
                     break;
-
                 case ROLE_DOCTOR:
-                    // TODO: 医生功能模块完成后在此替换
-                    printf("\n功能开发中...\n");
+                    // doctor_menu();   // 队友完成后取消注释
+                    printf("\n医生模块开发中...\n");
                     printf("按任意键继续...");
                     getchar();
+                    user_logout();
                     break;
-
                 case ROLE_PHARMACIST:
-                    // TODO: 药剂师功能模块完成后在此替换
-                    printf("\n功能开发中...\n");
+                    // pharmacy_menu(); // 队友完成后取消注释
+                    printf("\n药剂师模块开发中...\n");
                     printf("按任意键继续...");
                     getchar();
+                    user_logout();
                     break;
-
                 case ROLE_PATIENT:
-                    // TODO: 患者功能模块完成后在此替换
-                    printf("\n功能开发中...\n");
+                    // patient_menu();  // 队友完成后取消注释
+                    printf("\n患者模块开发中...\n");
                     printf("按任意键继续...");
                     getchar();
+                    user_logout();
                     break;
-
                 default:
                     break;
+            }
+            // 模块退出后（选0返回）自动回到登录界面
+            if (current_user.is_logged_in) {
+                user_logout();
             }
         }
     }
