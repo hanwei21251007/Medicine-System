@@ -333,16 +333,15 @@ void patient_view_exams() {
     printf("╔════════════════════════════════════════╗\n");
     printf("║            检查记录                    ║\n");
     printf("╚════════════════════════════════════════╝\n\n");
-
+ 
     printf("%-6s %-16s %-8s %-16s\n",
            "申请ID", "检查项目", "费用", "状态");
     printf("----------------------------------------------\n");
-
+ 
     ExamOrderNode *cur = exam_order_list;
     int count = 0;
     while (cur != NULL) {
         if (cur->patient_id == current_user.user_id) {
-            // 检查结果文字
             char *result_str = "-";
             if (cur->status == STATUS_DONE) {
                 if (cur->result == EXAM_RESULT_NORMAL)    result_str = "正常";
@@ -359,27 +358,79 @@ void patient_view_exams() {
         }
         cur = cur->next;
     }
-    if (count == 0) printf("暂无检查记录。\n");
-
+    if (count == 0) {
+        printf("暂无检查记录。\n");
+        printf("\n按任意键返回...");
+        getchar();
+        return;
+    }
+ 
+    // 缴费操作
+    printf("\n是否为某项检查缴费？(y/n): ");
+    char pay;
+    scanf("%c", &pay);
+    clear_input();
+ 
+    if (pay == 'y' || pay == 'Y') {
+        ExamOrderNode *target = NULL;
+        while (target == NULL) {
+            printf("输入要缴费的申请ID: ");
+            int order_id;
+            if (scanf("%d", &order_id) != 1) {
+                clear_input();
+                printf("输入无效。\n");
+                if (!ask_retry()) break;
+                continue;
+            }
+            clear_input();
+ 
+            ExamOrderNode *p = exam_order_list;
+            while (p != NULL) {
+                if (p->order_id   == order_id &&
+                    p->patient_id == current_user.user_id &&
+                    p->status     == STATUS_PENDING_PAY) {
+                    target = p;
+                    break;
+                }
+                p = p->next;
+            }
+            if (target == NULL) {
+                printf("未找到该检查申请，或该申请不在待缴费状态。\n");
+                if (!ask_retry()) break;
+            }
+        }
+ 
+        if (target != NULL) {
+            printf("检查费用：%.1f元，确认缴费？(y/n): ", target->price);
+            char confirm;
+            scanf("%c", &confirm);
+            clear_input();
+            if (confirm == 'y' || confirm == 'Y') {
+                target->status = STATUS_PENDING_DO;
+                save_all();
+                printf("缴费成功！医生可为您填写检查结果。\n");
+            } else {
+                printf("已取消。\n");
+            }
+        }
+    }
+ 
     printf("\n按任意键返回...");
     getchar();
 }
 
-
-// ════════════════════════════════════════
 // 查看处方记录
-// ════════════════════════════════════════
 
 void patient_view_prescriptions() {
     system("cls");
     printf("╔════════════════════════════════════════╗\n");
     printf("║            处方记录                    ║\n");
     printf("╚════════════════════════════════════════╝\n\n");
-
+ 
     printf("%-6s %-20s %-6s %-8s %-14s\n",
            "处方ID", "药品名称", "数量", "总价", "状态");
     printf("----------------------------------------------------\n");
-
+ 
     PrescriptionNode *cur = prescription_list;
     int count = 0;
     while (cur != NULL) {
@@ -394,11 +445,67 @@ void patient_view_prescriptions() {
         }
         cur = cur->next;
     }
-    if (count == 0) printf("暂无处方记录。\n");
-
+    if (count == 0) {
+        printf("暂无处方记录。\n");
+        printf("\n按任意键返回...");
+        getchar();
+        return;
+    }
+ 
+    // 缴费操作
+    printf("\n是否为某条处方缴费？(y/n): ");
+    char pay;
+    scanf("%c", &pay);
+    clear_input();
+ 
+    if (pay == 'y' || pay == 'Y') {
+        PrescriptionNode *target = NULL;
+        while (target == NULL) {
+            printf("输入要缴费的处方ID: ");
+            int presc_id;
+            if (scanf("%d", &presc_id) != 1) {
+                clear_input();
+                printf("输入无效。\n");
+                if (!ask_retry()) break;
+                continue;
+            }
+            clear_input();
+ 
+            PrescriptionNode *p = prescription_list;
+            while (p != NULL) {
+                if (p->prescription_id == presc_id &&
+                    p->patient_id      == current_user.user_id &&
+                    p->status          == STATUS_PENDING_PAY) {
+                    target = p;
+                    break;
+                }
+                p = p->next;
+            }
+            if (target == NULL) {
+                printf("未找到该处方，或该处方不在待缴费状态。\n");
+                if (!ask_retry()) break;
+            }
+        }
+ 
+        if (target != NULL) {
+            printf("处方费用：%.1f元，确认缴费？(y/n): ", target->price);
+            char confirm;
+            scanf("%c", &confirm);
+            clear_input();
+            if (confirm == 'y' || confirm == 'Y') {
+                target->status = STATUS_PENDING_DO;
+                save_all();
+                printf("缴费成功！药剂师可为您发药。\n");
+            } else {
+                printf("已取消。\n");
+            }
+        }
+    }
+ 
     printf("\n按任意键返回...");
     getchar();
 }
+ 
 
 
 // ════════════════════════════════════════

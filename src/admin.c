@@ -279,16 +279,32 @@ void admin_manage_drugs() {
         }
     }
 
-    printf("当前库存: %d，新库存 (不修改输入-1): ", target->stock);
-    int new_stock;
-    scanf("%d", &new_stock);
-    clear_input();
+    int new_stock = -2;
+    while (new_stock < -1) {
+        printf("当前库存: %d，新库存 (不修改输入-1): ", target->stock);
+        if (scanf("%d", &new_stock) != 1 || new_stock < -1) {
+            clear_input();
+            printf("输入无效。\n");
+            if (!ask_retry()) return;
+            new_stock = -2;
+            continue;
+        }
+        clear_input();
+    }
     if (new_stock >= 0) target->stock = new_stock;
 
-    printf("当前预警线: %d，新预警线 (不修改输入-1): ", target->warning_line);
-    int new_warn;
-    scanf("%d", &new_warn);
-    clear_input();
+    int new_warn = -2;
+    while (new_warn < -1) {
+        printf("当前预警线: %d，新预警线 (不修改输入-1): ", target->warning_line);
+        if (scanf("%d", &new_warn) != 1 || new_warn < -1) {
+            clear_input();
+            printf("输入无效。\n");
+            if (!ask_retry()) return;
+            new_warn = -2;
+            continue;
+        }
+        clear_input();
+    }
     if (new_warn >= 0) target->warning_line = new_warn;
 
     save_all();
@@ -396,6 +412,18 @@ void admin_review_apply() {
         return;
     }
 
+        // 批准前检查患者是否已在院
+    InpatientNode *ip_check = inpatient_list;
+    while (ip_check != NULL) {
+        if (ip_check->patient_id == target->patient_id &&
+            ip_check->is_discharged == 0) {
+            printf("该患者当前已在院，无法重复批准住院申请。\n");
+            printf("按任意键返回...");
+            getchar();
+            return;
+        }
+        ip_check = ip_check->next;
+    }
     // 批准：走住院登记逻辑，分配床位
     target->is_approved = 1;
 
@@ -865,6 +893,25 @@ void admin_admit_patient() {
 
     printf("患者姓名：%s\n\n", patient->name);
 
+    // 检查是否已有待审核的住院申请未处理
+    InpatientApplyNode *apply_check = inpatient_apply_list;
+    while (apply_check != NULL) {
+        if (apply_check->patient_id == medical_id &&
+            apply_check->is_approved == 1) {
+            // 已批准的申请对应的住院记录是否已创建
+            InpatientNode *ip = inpatient_list;
+            while (ip != NULL) {
+                if (ip->patient_id == medical_id && ip->is_discharged == 0) {
+                    printf("该患者已有通过审核的住院登记，无需重复操作。\n");
+                    printf("按任意键返回...");
+                    getchar();
+                    return;
+                }
+                ip = ip->next;
+            }
+        } 
+        apply_check = apply_check->next;
+    }
     // 查找医生，找不到可重试
     StaffNode *doctor = NULL;
     int doctor_id = 0;
@@ -1022,28 +1069,31 @@ void admin_discharge_patient() {
     printf("╚════════════════════════════════════════╝\n\n");
 
     // 查找住院记录，找不到可重试
-    InpatientNode *target = NULL;
-    while (target == NULL) {
-        printf("输入住院ID: ");
-        int inpatient_id;
-        if (scanf("%d", &inpatient_id) != 1) {
-            clear_input();
-            printf("输入无效。\n");
-            if (!ask_retry()) return;
-            continue;
-        }
+InpatientNode *target = NULL;
+while (target == NULL) {
+    printf("输入患者病历号: ");
+    int medical_id;
+    if (scanf("%d", &medical_id) != 1) {
         clear_input();
-
-        InpatientNode *p = inpatient_list;
-        while (p != NULL) {
-            if (p->inpatient_id == inpatient_id) { target = p; break; }
-            p = p->next;
-        }
-        if (target == NULL) {
-            printf("未找到该住院记录。\n");
-            if (!ask_retry()) return;
-        }
+        printf("输入无效。\n");
+        if (!ask_retry()) return;
+        continue;
     }
+    clear_input();
+
+    InpatientNode *p = inpatient_list;
+    while (p != NULL) {
+        if (p->patient_id == medical_id && p->is_discharged == 0) {
+            target = p;
+            break;
+        }
+        p = p->next;
+    }
+    if (target == NULL) {
+        printf("未找到该患者的在院记录。\n");
+        if (!ask_retry()) return;
+    }
+}
 
     if (target->is_discharged == 1) {
         printf("该患者已办理出院，无需重复操作。\n");

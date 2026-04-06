@@ -23,6 +23,9 @@ extern int   generate_exam_order_id();
 extern int   generate_prescription_id();
 extern int   generate_apply_id();
 
+// 前向声明
+static void doctor_prescribe(int record_id, int patient_id);
+static void doctor_apply_inpatient(int patient_id);
 
 // ════════════════════════════════════════
 // 内部工具函数
@@ -171,6 +174,7 @@ static void doctor_order_exam(int record_id, int patient_id) {
     printf("╚════════════════════════════════════════╝\n\n");
 
     // 显示本科室检查项目
+    printf("DEBUG: dept_id = %d\n", current_user.dept_id);
     printf("【%s 检查项目】\n", get_dept_name(current_user.dept_id));
     printf("%-6s %-20s %-8s\n", "项目ID", "项目名称", "费用");
     printf("----------------------------------\n");
@@ -236,7 +240,7 @@ static void doctor_order_exam(int record_id, int patient_id) {
     node->patient_id = patient_id;
     node->exam_id    = chosen->exam_id;
     node->price      = chosen->price;
-    node->status     = STATUS_PENDING_PAY;
+    node->status = STATUS_PENDING_PAY;
     node->result     = 0;
     node->next       = NULL;
 
@@ -366,10 +370,23 @@ static void doctor_fill_exam_result() {
     save_all();
 
     printf("检查结果已填写！\n");
-    if (result == 2) printf("请为患者开具处方。\n");
-    if (result == 3) printf("请为患者提交住院申请。\n");
-    printf("按任意键返回...");
-    getchar();
+    if (result == 1) {
+        printf("检查正常，无需处理。\n");
+        printf("按任意键返回...");
+        getchar();
+    }
+    if (result == 2) {
+        printf("需要开药，即将进入开具处方界面。\n");
+        printf("按任意键继续...");
+        getchar();
+        doctor_prescribe(target->record_id, target->patient_id);
+    }
+    if (result == 3) {
+        printf("需要住院，即将进入住院申请界面。\n");
+        printf("按任意键继续...");
+        getchar();
+        doctor_apply_inpatient(target->patient_id);
+    }
 }
 
 
@@ -501,7 +518,20 @@ static void doctor_apply_inpatient(int patient_id) {
     printf("╔════════════════════════════════════════╗\n");
     printf("║            提交住院申请                ║\n");
     printf("╚════════════════════════════════════════╝\n\n");
-
+    
+    // 检查该患者是否已有待审核的住院申请
+    InpatientApplyNode *check = inpatient_apply_list;
+    while (check != NULL) {
+        if (check->patient_id == patient_id && check->is_approved == 0) {
+            printf("该患者已有待审核的住院申请（申请ID：%d），无需重复提交。\n",
+               check->apply_id);
+            printf("按任意键返回...");
+            getchar();
+            return;
+        }
+        check = check->next;
+    }
+    
     printf("患者：%s（病历号%d）\n",
            get_patient_name(patient_id), patient_id);
     printf("科室：%s\n\n", get_dept_name(current_user.dept_id));

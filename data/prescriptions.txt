@@ -1,1 +1,4 @@
 # prescription_id,record_id,patient_id,drug_id,quantity,price,status
+1,7,20005,3,120,4200.0,1
+2,8,20003,9,80,2560.0,3
+3,9,20001,12,80,3600.0,3
