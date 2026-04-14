@@ -1,113 +1,144 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 #include "../include/structs.h"
 
-// Êï∞ÊçÆÊñá‰ª∂Ë∑ØÂæÑ
-#define FILE_USERS          "data/users.txt"
-#define FILE_DEPARTMENTS    "data/departments.txt"
-#define FILE_EXAM_ITEMS     "data/exam_items.txt"
-#define FILE_DRUGS          "data/drugs.txt"
-#define FILE_ROOMS          "data/rooms.txt"
-#define FILE_REGISTRATIONS  "data/registrations.txt"
-#define FILE_RECORDS        "data/medical_records.txt"
-#define FILE_EXAM_ORDERS    "data/exam_orders.txt"
-#define FILE_PRESCRIPTIONS  "data/prescriptions.txt"
-#define FILE_INPATIENTS     "data/inpatients.txt"
+//  ˝æ›Œƒº˛¬∑æ∂
+#define FILE_USERS "data/users.txt"
+#define FILE_DEPARTMENTS "data/departments.txt"
+#define FILE_EXAM_ITEMS "data/exam_items.txt"
+#define FILE_DRUGS "data/drugs.txt"
+#define FILE_ROOMS "data/rooms.txt"
+#define FILE_REGISTRATIONS "data/registrations.txt"
+#define FILE_RECORDS "data/medical_records.txt"
+#define FILE_EXAM_ORDERS "data/exam_orders.txt"
+#define FILE_PRESCRIPTIONS "data/prescriptions.txt"
+#define FILE_INPATIENTS "data/inpatients.txt"
 #define FILE_INPATIENT_APPLY "data/inpatient_apply.txt"
 
-// ÈìæË°®Â§¥ÊåáÈíàÔºàÂÖ®Â±ÄÔºâ
-StaffNode         *staff_list        = NULL;
-PatientNode       *patient_list      = NULL;
-DepartmentNode    *dept_list         = NULL;
-ExamItemNode      *exam_item_list    = NULL;
-DrugNode          *drug_list         = NULL;
-RoomNode          *room_list         = NULL;
-RegistrationNode  *reg_list          = NULL;
-MedicalRecordNode *record_list       = NULL;
-ExamOrderNode     *exam_order_list   = NULL;
-PrescriptionNode  *prescription_list = NULL;
-InpatientNode     *inpatient_list    = NULL;
+// ¡¥±ÌÕ∑÷∏’Î£®»´æ÷£©
+StaffNode *staff_list = NULL;
+PatientNode *patient_list = NULL;
+DepartmentNode *dept_list = NULL;
+ExamItemNode *exam_item_list = NULL;
+DrugNode *drug_list = NULL;
+RoomNode *room_list = NULL;
+RegistrationNode *reg_list = NULL;
+MedicalRecordNode *record_list = NULL;
+ExamOrderNode *exam_order_list = NULL;
+PrescriptionNode *prescription_list = NULL;
+InpatientNode *inpatient_list = NULL;
 InpatientApplyNode *inpatient_apply_list = NULL;
 
-// ËÅåÁß∞Áõ∏ÂÖ≥Â∑•ÂÖ∑ÂáΩÊï∞
+// ÷∞≥∆œ‡πÿπ§æﬂ∫Ø ˝
 
-float get_title_fee(DoctorTitle title) {
-    if (title == TITLE_RESIDENT)  return 0.0f;
-    if (title == TITLE_ATTENDING) return 5.0f;
-    if (title == TITLE_ASSOCIATE) return 15.0f;
-    if (title == TITLE_CHIEF)     return 30.0f;
+float get_title_fee(DoctorTitle title)
+{
+    if (title == TITLE_RESIDENT)
+        return 0.0f;
+    if (title == TITLE_ATTENDING)
+        return 5.0f;
+    if (title == TITLE_ASSOCIATE)
+        return 15.0f;
+    if (title == TITLE_CHIEF)
+        return 30.0f;
     return 0.0f;
 }
 
-const char *get_title_name(DoctorTitle title) {
-    if (title == TITLE_RESIDENT)  return "‰ΩèÈô¢ÂåªÂ∏à";
-    if (title == TITLE_ATTENDING) return "‰∏ªÊ≤ªÂåªÂ∏à";
-    if (title == TITLE_ASSOCIATE) return "ÂâØ‰∏ª‰ªªÂåªÂ∏à";
-    if (title == TITLE_CHIEF)     return "‰∏ª‰ªªÂåªÂ∏à";
-    return "Êú™Áü•";
+const char *get_title_name(DoctorTitle title)
+{
+    if (title == TITLE_RESIDENT)
+        return "◊°‘∫“Ω ¶";
+    if (title == TITLE_ATTENDING)
+        return "÷˜÷Œ“Ω ¶";
+    if (title == TITLE_ASSOCIATE)
+        return "∏±÷˜»Œ“Ω ¶";
+    if (title == TITLE_CHIEF)
+        return "÷˜»Œ“Ω ¶";
+    return "Œ¥÷™";
 }
 
-// Áî®Êà∑Êï∞ÊçÆËØªÂÜôÔºàstaff + patient ÂÖ±Áî®‰∏Ä‰∏™Êñá‰ª∂Ôºâ
+// ”√ªß ˝æ›∂¡–¥£®staff + patient π≤”√“ª∏ˆŒƒº˛£©
 
-
-void load_users_from_file() {
+void load_users_from_file()
+{
     FILE *fp = fopen(FILE_USERS, "r");
-    if (fp == NULL) {
-        printf("[Ë≠¶Âëä] Êú™ÊâæÂà∞Áî®Êà∑Êï∞ÊçÆÊñá‰ª∂\n");
+    if (fp == NULL)
+    {
+        printf("[æØ∏Ê] Œ¥’“µΩ”√ªß ˝æ›Œƒº˛\n");
         return;
     }
 
     char line[256];
-    while (fgets(line, sizeof(line), fp) != NULL) {
-        // Ë∑≥ËøáÊ≥®ÈáäÂíåÁ©∫Ë°å
+    while (fgets(line, sizeof(line), fp) != NULL)
+    {
+        // Ã¯π˝◊¢ Õ∫Õø’––
         if (line[0] == '#' || line[0] == '\n' || line[0] == '\r')
             continue;
         line[strcspn(line, "\r\n")] = '\0';
 
-        // Â∞ùËØïËØªÂëòÂ∑•
-        if (line[0] == 'S') {
+        // ≥¢ ‘∂¡‘±π§
+        if (line[0] == 'S')
+        {
             StaffNode *node = (StaffNode *)malloc(sizeof(StaffNode));
-            if (node == NULL) continue;
+            if (node == NULL)
+                continue;
             int role, title;
             if (sscanf(line, "STAFF,%d,%49[^,],%49[^,],%d,%d,%d,",
                        &node->id, node->password, node->name,
-                       &role, &title, &node->dept_id) == 6) {
-                node->role  = (UserRole)role;
+                       &role, &title, &node->dept_id) == 6)
+            {
+                node->role = (UserRole)role;
                 node->title = (DoctorTitle)title;
-                node->next  = NULL;
-                // ËøΩÂä†Âà∞ÈìæË°®Â∞æ
-                if (staff_list == NULL) {
+                node->next = NULL;
+                // ◊∑º”µΩ¡¥±ÌŒ≤
+                if (staff_list == NULL)
+                {
                     staff_list = node;
-                } else {
+                }
+                else
+                {
                     StaffNode *cur = staff_list;
-                    while (cur->next != NULL) cur = cur->next;
+                    while (cur->next != NULL)
+                        cur = cur->next;
                     cur->next = node;
                 }
-            } else {
+            }
+            else
+            {
                 free(node);
             }
         }
 
-        // Â∞ùËØïËØªÊÇ£ËÄÖ
-        if (line[0] == 'P') {
+        // ≥¢ ‘∂¡ªº’ﬂ
+        if (line[0] == 'P')
+        {
             PatientNode *node = (PatientNode *)malloc(sizeof(PatientNode));
-            if (node == NULL) continue;
-            int role, title, dept;
-            if (sscanf(line, "PATIENT,%d,%49[^,],%49[^,],%d,%d,%d,%18s",
+            if (node == NULL)
+                continue;
+            int role, title, dept, is_deleted;
+            if (sscanf(line, "PATIENT,%d,%49[^,],%49[^,],%d,%d,%d,%18s,%d",
                        &node->medical_id, node->password, node->name,
-                       &role, &title, &dept, node->id_card) == 7) {
+                       &role, &title, &dept, node->id_card, &node->is_deleted) == 8)
+            {
                 node->gender = 0;
-                node->age    = 0;
-                node->next   = NULL;
-                if (patient_list == NULL) {
+                node->age = 0;
+                node->next = NULL;
+                if (patient_list == NULL)
+                {
                     patient_list = node;
-                } else {
+                }
+                else
+                {
                     PatientNode *cur = patient_list;
-                    while (cur->next != NULL) cur = cur->next;
+                    while (cur->next != NULL)
+                        cur = cur->next;
                     cur->next = node;
                 }
-            } else {
+            }
+            else
+            {
                 free(node);
             }
         }
@@ -115,17 +146,20 @@ void load_users_from_file() {
     fclose(fp);
 }
 
-void save_users_to_file() {
+void save_users_to_file()
+{
     FILE *fp = fopen(FILE_USERS, "w");
-    if (fp == NULL) {
-        printf("[ÈîôËØØ] Êó†Ê≥ïÂÜôÂÖ•Áî®Êà∑Êï∞ÊçÆÊñá‰ª∂\n");
+    if (fp == NULL)
+    {
+        printf("[¥ÌŒÛ] Œﬁ∑®–¥»Î”√ªß ˝æ›Œƒº˛\n");
         return;
     }
 
     fprintf(fp, "# type,id,password,name,role,title,dept_id,id_card\n");
 
     StaffNode *s = staff_list;
-    while (s != NULL) {
+    while (s != NULL)
+    {
         fprintf(fp, "STAFF,%d,%s,%s,%d,%d,%d,\n",
                 s->id, s->password, s->name,
                 (int)s->role, (int)s->title, s->dept_id);
@@ -133,133 +167,170 @@ void save_users_to_file() {
     }
 
     PatientNode *p = patient_list;
-    while (p != NULL) {
-        fprintf(fp, "PATIENT,%d,%s,%s,4,0,0,%s\n",
-                p->medical_id, p->password, p->name, p->id_card);
+    while (p != NULL)
+    {
+        fprintf(fp, "PATIENT,%d,%s,%s,4,0,0,%s,%d\n",
+                p->medical_id, p->password, p->name, p->id_card, p->is_deleted);
         p = p->next;
     }
 
     fclose(fp);
 }
 
-// ÁßëÂÆ§Êï∞ÊçÆÔºàÂè™ËØªÔºå‰∏çÈúÄË¶ÅÂÜôÂõûÔºâ
+// ø∆ “ ˝æ›£®÷ª∂¡£¨≤ª–Ë“™–¥ªÿ£©
 
-void load_departments() {
+void load_departments()
+{
     FILE *fp = fopen(FILE_DEPARTMENTS, "r");
-    if (fp == NULL) {
-        printf("[Ë≠¶Âëä] Êú™ÊâæÂà∞ÁßëÂÆ§Êï∞ÊçÆÊñá‰ª∂\n");
+    if (fp == NULL)
+    {
+        printf("[æØ∏Ê] Œ¥’“µΩø∆ “ ˝æ›Œƒº˛\n");
         return;
     }
 
     char line[128];
-    while (fgets(line, sizeof(line), fp) != NULL) {
+    while (fgets(line, sizeof(line), fp) != NULL)
+    {
         if (line[0] == '#' || line[0] == '\n' || line[0] == '\r')
             continue;
         line[strcspn(line, "\r\n")] = '\0';
 
         DepartmentNode *node = (DepartmentNode *)malloc(sizeof(DepartmentNode));
-        if (node == NULL) continue;
+        if (node == NULL)
+            continue;
 
         if (sscanf(line, "%d,%49[^,],%f",
-                   &node->dept_id, node->dept_name, &node->base_reg_fee) == 3) {
+                   &node->dept_id, node->dept_name, &node->base_reg_fee) == 3)
+        {
             node->next = NULL;
-            if (dept_list == NULL) {
+            if (dept_list == NULL)
+            {
                 dept_list = node;
-            } else {
+            }
+            else
+            {
                 DepartmentNode *cur = dept_list;
-                while (cur->next != NULL) cur = cur->next;
+                while (cur->next != NULL)
+                    cur = cur->next;
                 cur->next = node;
             }
-        } else {
+        }
+        else
+        {
             free(node);
         }
     }
     fclose(fp);
 }
 
-// Ê£ÄÊü•È°πÁõÆÔºàÂè™ËØªÔºâ
+// ºÏ≤ÈœÓƒø£®÷ª∂¡£©
 
-void load_exam_items() {
+void load_exam_items()
+{
     FILE *fp = fopen(FILE_EXAM_ITEMS, "r");
-    if (fp == NULL) {
-        printf("[Ë≠¶Âëä] Êú™ÊâæÂà∞Ê£ÄÊü•È°πÁõÆÊï∞ÊçÆÊñá‰ª∂\n");
+    if (fp == NULL)
+    {
+        printf("[æØ∏Ê] Œ¥’“µΩºÏ≤ÈœÓƒø ˝æ›Œƒº˛\n");
         return;
     }
 
     char line[128];
-    while (fgets(line, sizeof(line), fp) != NULL) {
+    while (fgets(line, sizeof(line), fp) != NULL)
+    {
         if (line[0] == '#' || line[0] == '\n' || line[0] == '\r')
             continue;
         line[strcspn(line, "\r\n")] = '\0';
 
         ExamItemNode *node = (ExamItemNode *)malloc(sizeof(ExamItemNode));
-        if (node == NULL) continue;
+        if (node == NULL)
+            continue;
 
         if (sscanf(line, "%d,%d,%49[^,],%f",
                    &node->exam_id, &node->dept_id,
-                   node->exam_name, &node->price) == 4) {
+                   node->exam_name, &node->price) == 4)
+        {
             node->next = NULL;
-            if (exam_item_list == NULL) {
+            if (exam_item_list == NULL)
+            {
                 exam_item_list = node;
-            } else {
+            }
+            else
+            {
                 ExamItemNode *cur = exam_item_list;
-                while (cur->next != NULL) cur = cur->next;
+                while (cur->next != NULL)
+                    cur = cur->next;
                 cur->next = node;
             }
-        } else {
+        }
+        else
+        {
             free(node);
         }
     }
     fclose(fp);
 }
 
-// ËçØÂìÅÊï∞ÊçÆÔºàÂ∫ìÂ≠ò‰ºöÂèòÂä®ÔºåÈúÄË¶ÅÂÜôÂõûÔºâ
+// “©∆∑ ˝æ›£®ø‚¥Êª·±‰∂Ø£¨–Ë“™–¥ªÿ£©
 
-void load_drugs() {
+void load_drugs()
+{
     FILE *fp = fopen(FILE_DRUGS, "r");
-    if (fp == NULL) {
-        printf("[Ë≠¶Âëä] Êú™ÊâæÂà∞ËçØÂìÅÊï∞ÊçÆÊñá‰ª∂\n");
+    if (fp == NULL)
+    {
+        printf("[æØ∏Ê] Œ¥’“µΩ“©∆∑ ˝æ›Œƒº˛\n");
         return;
     }
 
     char line[200];
-    while (fgets(line, sizeof(line), fp) != NULL) {
+    while (fgets(line, sizeof(line), fp) != NULL)
+    {
         if (line[0] == '#' || line[0] == '\n' || line[0] == '\r')
             continue;
         line[strcspn(line, "\r\n")] = '\0';
 
         DrugNode *node = (DrugNode *)malloc(sizeof(DrugNode));
-        if (node == NULL) continue;
+        if (node == NULL)
+            continue;
 
         if (sscanf(line, "%d,%d,%49[^,],%f,%d,%d",
                    &node->drug_id, &node->dept_id, node->drug_name,
-                   &node->price, &node->stock, &node->warning_line) == 6) {
+                   &node->price, &node->stock, &node->warning_line) == 6)
+        {
             node->next = NULL;
-            if (drug_list == NULL) {
+            if (drug_list == NULL)
+            {
                 drug_list = node;
-            } else {
+            }
+            else
+            {
                 DrugNode *cur = drug_list;
-                while (cur->next != NULL) cur = cur->next;
+                while (cur->next != NULL)
+                    cur = cur->next;
                 cur->next = node;
             }
-        } else {
+        }
+        else
+        {
             free(node);
         }
     }
     fclose(fp);
 }
 
-void save_drugs() {
+void save_drugs()
+{
     FILE *fp = fopen(FILE_DRUGS, "w");
-    if (fp == NULL) {
-        printf("[ÈîôËØØ] Êó†Ê≥ïÂÜôÂÖ•ËçØÂìÅÊï∞ÊçÆÊñá‰ª∂\n");
+    if (fp == NULL)
+    {
+        printf("[¥ÌŒÛ] Œﬁ∑®–¥»Î“©∆∑ ˝æ›Œƒº˛\n");
         return;
     }
 
     fprintf(fp, "# drug_id,dept_id,drug_name,price,stock,warning_line\n");
 
     DrugNode *cur = drug_list;
-    while (cur != NULL) {
+    while (cur != NULL)
+    {
         fprintf(fp, "%d,%d,%s,%.1f,%d,%d\n",
                 cur->drug_id, cur->dept_id, cur->drug_name,
                 cur->price, cur->stock, cur->warning_line);
@@ -268,55 +339,69 @@ void save_drugs() {
     fclose(fp);
 }
 
-// ÁóÖÊàøÊï∞ÊçÆÔºàÂ∫ä‰ΩçÂç†Áî®‰ºöÂèòÂä®ÔºåÈúÄË¶ÅÂÜôÂõûÔºâ
+// ≤°∑ø ˝æ›£®¥≤Œª’º”√ª·±‰∂Ø£¨–Ë“™–¥ªÿ£©
 
-void load_rooms() {
+void load_rooms()
+{
     FILE *fp = fopen(FILE_ROOMS, "r");
-    if (fp == NULL) {
-        printf("[Ë≠¶Âëä] Êú™ÊâæÂà∞ÁóÖÊàøÊï∞ÊçÆÊñá‰ª∂\n");
+    if (fp == NULL)
+    {
+        printf("[æØ∏Ê] Œ¥’“µΩ≤°∑ø ˝æ›Œƒº˛\n");
         return;
     }
 
     char line[128];
-    while (fgets(line, sizeof(line), fp) != NULL) {
+    while (fgets(line, sizeof(line), fp) != NULL)
+    {
         if (line[0] == '#' || line[0] == '\n' || line[0] == '\r')
             continue;
         line[strcspn(line, "\r\n")] = '\0';
 
         RoomNode *node = (RoomNode *)malloc(sizeof(RoomNode));
-        if (node == NULL) continue;
+        if (node == NULL)
+            continue;
 
         int room_type;
         if (sscanf(line, "%d,%d,%d,%d,%d,%f",
                    &node->room_id, &node->dept_id, &room_type,
-                   &node->capacity, &node->current, &node->daily_fee) == 6) {
+                   &node->capacity, &node->current, &node->daily_fee) == 6)
+        {
             node->room_type = (RoomType)room_type;
             node->next = NULL;
-            if (room_list == NULL) {
+            if (room_list == NULL)
+            {
                 room_list = node;
-            } else {
+            }
+            else
+            {
                 RoomNode *cur = room_list;
-                while (cur->next != NULL) cur = cur->next;
+                while (cur->next != NULL)
+                    cur = cur->next;
                 cur->next = node;
             }
-        } else {
+        }
+        else
+        {
             free(node);
         }
     }
     fclose(fp);
 }
 
-void save_rooms() {
+void save_rooms()
+{
     FILE *fp = fopen(FILE_ROOMS, "w");
-    if (fp == NULL) {
-        printf("[ÈîôËØØ] Êó†Ê≥ïÂÜôÂÖ•ÁóÖÊàøÊï∞ÊçÆÊñá‰ª∂\n");
+    if (fp == NULL)
+    {
+        printf("[¥ÌŒÛ] Œﬁ∑®–¥»Î≤°∑ø ˝æ›Œƒº˛\n");
         return;
     }
 
     fprintf(fp, "# room_id,dept_id,room_type,capacity,current,daily_fee\n");
 
     RoomNode *cur = room_list;
-    while (cur != NULL) {
+    while (cur != NULL)
+    {
         fprintf(fp, "%d,%d,%d,%d,%d,%.1f\n",
                 cur->room_id, cur->dept_id, (int)cur->room_type,
                 cur->capacity, cur->current, cur->daily_fee);
@@ -325,103 +410,131 @@ void save_rooms() {
     fclose(fp);
 }
 
-// ÊåÇÂè∑ËÆ∞ÂΩï
+// π“∫≈º«¬º
 
-void load_registrations() {
+void load_registrations()
+{
     FILE *fp = fopen(FILE_REGISTRATIONS, "r");
-    if (fp == NULL) return;
+    if (fp == NULL)
+        return;
 
     char line[256];
-    while (fgets(line, sizeof(line), fp) != NULL) {
+    while (fgets(line, sizeof(line), fp) != NULL)
+    {
         if (line[0] == '#' || line[0] == '\n' || line[0] == '\r')
             continue;
         line[strcspn(line, "\r\n")] = '\0';
 
         RegistrationNode *node = (RegistrationNode *)malloc(sizeof(RegistrationNode));
-        if (node == NULL) continue;
+        if (node == NULL)
+            continue;
 
         int status;
-       if (sscanf(line, "%d,%d,%d,%d,%24[^,],%f,%d,%d,%d,%24s",
-           &node->reg_id, &node->patient_id, &node->doctor_id,
-           &node->dept_id, node->date, &node->reg_fee,
-           &node->queue_num, &status,
-           &node->is_cancelled, node->cancel_time) == 10)  {
+        if (sscanf(line, "%d,%d,%d,%d,%24[^,],%f,%d,%d,%d,%24s",
+                   &node->reg_id, &node->patient_id, &node->doctor_id,
+                   &node->dept_id, node->date, &node->reg_fee,
+                   &node->queue_num, &status,
+                   &node->is_cancelled, node->cancel_time) == 10)
+        {
             node->status = (ItemStatus)status;
             node->next = NULL;
-            if (reg_list == NULL) {
+            if (reg_list == NULL)
+            {
                 reg_list = node;
-            } else {
+            }
+            else
+            {
                 RegistrationNode *cur = reg_list;
-                while (cur->next != NULL) cur = cur->next;
+                while (cur->next != NULL)
+                    cur = cur->next;
                 cur->next = node;
             }
-        } else {
+        }
+        else
+        {
             free(node);
         }
     }
     fclose(fp);
 }
 
-void save_registrations() {
+void save_registrations()
+{
     FILE *fp = fopen(FILE_REGISTRATIONS, "w");
-    if (fp == NULL) return;
+    if (fp == NULL)
+        return;
 
     fprintf(fp, "# reg_id,patient_id,doctor_id,dept_id,date,reg_fee,queue_num,status\n");
 
     RegistrationNode *cur = reg_list;
-    while (cur != NULL) {
+    while (cur != NULL)
+    {
         fprintf(fp, "%d,%d,%d,%d,%s,%.1f,%d,%d,%d,%s\n",
-        cur->reg_id, cur->patient_id, cur->doctor_id,
-        cur->dept_id, cur->date, cur->reg_fee,
-        cur->queue_num, (int)cur->status,
-        cur->is_cancelled, cur->cancel_time);
+                cur->reg_id, cur->patient_id, cur->doctor_id,
+                cur->dept_id, cur->date, cur->reg_fee,
+                cur->queue_num, (int)cur->status,
+                cur->is_cancelled, cur->cancel_time);
         cur = cur->next;
     }
     fclose(fp);
 }
 
-// ÁóÖÂéÜËÆ∞ÂΩï
+// ≤°¿˙º«¬º
 
-void load_medical_records() {
+void load_medical_records()
+{
     FILE *fp = fopen(FILE_RECORDS, "r");
-    if (fp == NULL) return;
+    if (fp == NULL)
+        return;
 
     char line[512];
-    while (fgets(line, sizeof(line), fp) != NULL) {
+    while (fgets(line, sizeof(line), fp) != NULL)
+    {
         if (line[0] == '#' || line[0] == '\n' || line[0] == '\r')
             continue;
         line[strcspn(line, "\r\n")] = '\0';
 
         MedicalRecordNode *node = (MedicalRecordNode *)malloc(sizeof(MedicalRecordNode));
-        if (node == NULL) continue;
+        if (node == NULL)
+            continue;
 
         if (sscanf(line, "%d,%d,%d,%d,%d,%199[^,],%19s",
                    &node->record_id, &node->reg_id, &node->patient_id,
                    &node->doctor_id, &node->dept_id,
-                   node->diagnosis, node->date) == 7) {
+                   node->diagnosis, node->date) == 7)
+        {
             node->next = NULL;
-            if (record_list == NULL) {
+            if (record_list == NULL)
+            {
                 record_list = node;
-            } else {
+            }
+            else
+            {
                 MedicalRecordNode *cur = record_list;
-                while (cur->next != NULL) cur = cur->next;
+                while (cur->next != NULL)
+                    cur = cur->next;
                 cur->next = node;
             }
-        } else {
+        }
+        else
+        {
             free(node);
         }
     }
     fclose(fp);
 }
 
-void save_medical_records() {
+void save_medical_records()
+{
     FILE *fp = fopen(FILE_RECORDS, "w");
-    if (fp == NULL) return;
+    if (fp == NULL)
+        return;
 
     fprintf(fp, "# record_id,reg_id,patient_id,doctor_id,dept_id,diagnosis,date\n");
 
     MedicalRecordNode *cur = record_list;
-    while (cur != NULL) {
+    while (cur != NULL)
+    {
         fprintf(fp, "%d,%d,%d,%d,%d,%s,%s\n",
                 cur->record_id, cur->reg_id, cur->patient_id,
                 cur->doctor_id, cur->dept_id,
@@ -431,50 +544,64 @@ void save_medical_records() {
     fclose(fp);
 }
 
-// Ê£ÄÊü•Áî≥ËØ∑Âçï
+// ºÏ≤È…Í«Îµ•
 
-void load_exam_orders() {
+void load_exam_orders()
+{
     FILE *fp = fopen(FILE_EXAM_ORDERS, "r");
-    if (fp == NULL) return;
+    if (fp == NULL)
+        return;
 
     char line[256];
-    while (fgets(line, sizeof(line), fp) != NULL) {
+    while (fgets(line, sizeof(line), fp) != NULL)
+    {
         if (line[0] == '#' || line[0] == '\n' || line[0] == '\r')
             continue;
         line[strcspn(line, "\r\n")] = '\0';
 
         ExamOrderNode *node = (ExamOrderNode *)malloc(sizeof(ExamOrderNode));
-        if (node == NULL) continue;
+        if (node == NULL)
+            continue;
 
         int status, result;
         if (sscanf(line, "%d,%d,%d,%d,%f,%d,%d",
                    &node->order_id, &node->record_id, &node->patient_id,
-                   &node->exam_id, &node->price, &status, &result) == 7) {
+                   &node->exam_id, &node->price, &status, &result) == 7)
+        {
             node->status = (ItemStatus)status;
             node->result = (ExamResult)result;
             node->next = NULL;
-            if (exam_order_list == NULL) {
+            if (exam_order_list == NULL)
+            {
                 exam_order_list = node;
-            } else {
+            }
+            else
+            {
                 ExamOrderNode *cur = exam_order_list;
-                while (cur->next != NULL) cur = cur->next;
+                while (cur->next != NULL)
+                    cur = cur->next;
                 cur->next = node;
             }
-        } else {
+        }
+        else
+        {
             free(node);
         }
     }
     fclose(fp);
 }
 
-void save_exam_orders() {
+void save_exam_orders()
+{
     FILE *fp = fopen(FILE_EXAM_ORDERS, "w");
-    if (fp == NULL) return;
+    if (fp == NULL)
+        return;
 
     fprintf(fp, "# order_id,record_id,patient_id,exam_id,price,status,result\n");
 
     ExamOrderNode *cur = exam_order_list;
-    while (cur != NULL) {
+    while (cur != NULL)
+    {
         fprintf(fp, "%d,%d,%d,%d,%.1f,%d,%d\n",
                 cur->order_id, cur->record_id, cur->patient_id,
                 cur->exam_id, cur->price,
@@ -484,49 +611,63 @@ void save_exam_orders() {
     fclose(fp);
 }
 
-// Â§ÑÊñπ
+// ¥¶∑Ω
 
-void load_prescriptions() {
+void load_prescriptions()
+{
     FILE *fp = fopen(FILE_PRESCRIPTIONS, "r");
-    if (fp == NULL) return;
+    if (fp == NULL)
+        return;
 
     char line[256];
-    while (fgets(line, sizeof(line), fp) != NULL) {
+    while (fgets(line, sizeof(line), fp) != NULL)
+    {
         if (line[0] == '#' || line[0] == '\n' || line[0] == '\r')
             continue;
         line[strcspn(line, "\r\n")] = '\0';
 
         PrescriptionNode *node = (PrescriptionNode *)malloc(sizeof(PrescriptionNode));
-        if (node == NULL) continue;
+        if (node == NULL)
+            continue;
 
         int status;
         if (sscanf(line, "%d,%d,%d,%d,%d,%f,%d",
                    &node->prescription_id, &node->record_id, &node->patient_id,
-                   &node->drug_id, &node->quantity, &node->price, &status) == 7) {
+                   &node->drug_id, &node->quantity, &node->price, &status) == 7)
+        {
             node->status = (ItemStatus)status;
             node->next = NULL;
-            if (prescription_list == NULL) {
+            if (prescription_list == NULL)
+            {
                 prescription_list = node;
-            } else {
+            }
+            else
+            {
                 PrescriptionNode *cur = prescription_list;
-                while (cur->next != NULL) cur = cur->next;
+                while (cur->next != NULL)
+                    cur = cur->next;
                 cur->next = node;
             }
-        } else {
+        }
+        else
+        {
             free(node);
         }
     }
     fclose(fp);
 }
 
-void save_prescriptions() {
+void save_prescriptions()
+{
     FILE *fp = fopen(FILE_PRESCRIPTIONS, "w");
-    if (fp == NULL) return;
+    if (fp == NULL)
+        return;
 
     fprintf(fp, "# prescription_id,record_id,patient_id,drug_id,quantity,price,status\n");
 
     PrescriptionNode *cur = prescription_list;
-    while (cur != NULL) {
+    while (cur != NULL)
+    {
         fprintf(fp, "%d,%d,%d,%d,%d,%.1f,%d\n",
                 cur->prescription_id, cur->record_id, cur->patient_id,
                 cur->drug_id, cur->quantity, cur->price, (int)cur->status);
@@ -535,49 +676,63 @@ void save_prescriptions() {
     fclose(fp);
 }
 
-// ‰ΩèÈô¢ËÆ∞ÂΩï
+// ◊°‘∫º«¬º
 
-void load_inpatients() {
+void load_inpatients()
+{
     FILE *fp = fopen(FILE_INPATIENTS, "r");
-    if (fp == NULL) return;
+    if (fp == NULL)
+        return;
 
     char line[256];
-    while (fgets(line, sizeof(line), fp) != NULL) {
+    while (fgets(line, sizeof(line), fp) != NULL)
+    {
         if (line[0] == '#' || line[0] == '\n' || line[0] == '\r')
             continue;
         line[strcspn(line, "\r\n")] = '\0';
 
         InpatientNode *node = (InpatientNode *)malloc(sizeof(InpatientNode));
-        if (node == NULL) continue;
+        if (node == NULL)
+            continue;
 
         if (sscanf(line, "%d,%d,%d,%d,%d,%d,%19[^,],%19[^,],%d,%f,%d",
                    &node->inpatient_id, &node->patient_id, &node->doctor_id,
                    &node->dept_id, &node->room_id, &node->bed_num,
                    node->admit_date, node->discharge_date,
-                   &node->days, &node->total_fee, &node->is_discharged) == 11) {
+                   &node->days, &node->total_fee, &node->is_discharged) == 11)
+        {
             node->next = NULL;
-            if (inpatient_list == NULL) {
+            if (inpatient_list == NULL)
+            {
                 inpatient_list = node;
-            } else {
+            }
+            else
+            {
                 InpatientNode *cur = inpatient_list;
-                while (cur->next != NULL) cur = cur->next;
+                while (cur->next != NULL)
+                    cur = cur->next;
                 cur->next = node;
             }
-        } else {
+        }
+        else
+        {
             free(node);
         }
     }
     fclose(fp);
 }
 
-void save_inpatients() {
+void save_inpatients()
+{
     FILE *fp = fopen(FILE_INPATIENTS, "w");
-    if (fp == NULL) return;
+    if (fp == NULL)
+        return;
 
     fprintf(fp, "# inpatient_id,patient_id,doctor_id,dept_id,room_id,bed_num,admit_date,discharge_date,days,total_fee,is_discharged\n");
 
     InpatientNode *cur = inpatient_list;
-    while (cur != NULL) {
+    while (cur != NULL)
+    {
         fprintf(fp, "%d,%d,%d,%d,%d,%d,%s,%s,%d,%.1f,%d\n",
                 cur->inpatient_id, cur->patient_id, cur->doctor_id,
                 cur->dept_id, cur->room_id, cur->bed_num,
@@ -588,45 +743,59 @@ void save_inpatients() {
     fclose(fp);
 }
 
-void load_inpatient_apply() {
+void load_inpatient_apply()
+{
     FILE *fp = fopen(FILE_INPATIENT_APPLY, "r");
-    if (fp == NULL) return;
+    if (fp == NULL)
+        return;
 
     char line[256];
-    while (fgets(line, sizeof(line), fp) != NULL) {
+    while (fgets(line, sizeof(line), fp) != NULL)
+    {
         if (line[0] == '#' || line[0] == '\n' || line[0] == '\r')
             continue;
         line[strcspn(line, "\r\n")] = '\0';
 
         InpatientApplyNode *node = (InpatientApplyNode *)malloc(sizeof(InpatientApplyNode));
-        if (node == NULL) continue;
+        if (node == NULL)
+            continue;
 
         if (sscanf(line, "%d,%d,%d,%d,%24[^,],%d",
                    &node->apply_id, &node->patient_id, &node->doctor_id,
-                   &node->dept_id, node->apply_time, &node->is_approved) == 6) {
+                   &node->dept_id, node->apply_time, &node->is_approved) == 6)
+        {
             node->next = NULL;
-            if (inpatient_apply_list == NULL) {
+            if (inpatient_apply_list == NULL)
+            {
                 inpatient_apply_list = node;
-            } else {
+            }
+            else
+            {
                 InpatientApplyNode *cur = inpatient_apply_list;
-                while (cur->next != NULL) cur = cur->next;
+                while (cur->next != NULL)
+                    cur = cur->next;
                 cur->next = node;
             }
-        } else {
+        }
+        else
+        {
             free(node);
         }
     }
     fclose(fp);
 }
 
-void save_inpatient_apply() {
+void save_inpatient_apply()
+{
     FILE *fp = fopen(FILE_INPATIENT_APPLY, "w");
-    if (fp == NULL) return;
+    if (fp == NULL)
+        return;
 
     fprintf(fp, "# apply_id,patient_id,doctor_id,dept_id,apply_time,is_approved\n");
 
     InpatientApplyNode *cur = inpatient_apply_list;
-    while (cur != NULL) {
+    while (cur != NULL)
+    {
         fprintf(fp, "%d,%d,%d,%d,%s,%d\n",
                 cur->apply_id, cur->patient_id, cur->doctor_id,
                 cur->dept_id, cur->apply_time, cur->is_approved);
@@ -635,84 +804,107 @@ void save_inpatient_apply() {
     fclose(fp);
 }
 
-// ID Ëá™Â¢ûÁîüÊàêÂô®
+// ID ◊‘‘ˆ…˙≥…∆˜
 
-int generate_medical_id() {
+int generate_medical_id()
+{
     int max = 20000;
     PatientNode *cur = patient_list;
-    while (cur != NULL) {
-        if (cur->medical_id > max) max = cur->medical_id;
+    while (cur != NULL)
+    {
+        if (cur->medical_id > max)
+            max = cur->medical_id;
         cur = cur->next;
     }
     return max + 1;
 }
 
-int generate_reg_id() {
+int generate_reg_id()
+{
     int max = 0;
     RegistrationNode *cur = reg_list;
-    while (cur != NULL) {
-        if (cur->reg_id > max) max = cur->reg_id;
+    while (cur != NULL)
+    {
+        if (cur->reg_id > max)
+            max = cur->reg_id;
         cur = cur->next;
     }
     return max + 1;
 }
 
-int generate_record_id() {
+int generate_record_id()
+{
     int max = 0;
     MedicalRecordNode *cur = record_list;
-    while (cur != NULL) {
-        if (cur->record_id > max) max = cur->record_id;
+    while (cur != NULL)
+    {
+        if (cur->record_id > max)
+            max = cur->record_id;
         cur = cur->next;
     }
     return max + 1;
 }
 
-int generate_exam_order_id() {
+int generate_exam_order_id()
+{
     int max = 0;
     ExamOrderNode *cur = exam_order_list;
-    while (cur != NULL) {
-        if (cur->order_id > max) max = cur->order_id;
+    while (cur != NULL)
+    {
+        if (cur->order_id > max)
+            max = cur->order_id;
         cur = cur->next;
     }
     return max + 1;
 }
 
-int generate_prescription_id() {
+int generate_prescription_id()
+{
     int max = 0;
     PrescriptionNode *cur = prescription_list;
-    while (cur != NULL) {
-        if (cur->prescription_id > max) max = cur->prescription_id;
+    while (cur != NULL)
+    {
+        if (cur->prescription_id > max)
+            max = cur->prescription_id;
         cur = cur->next;
     }
     return max + 1;
 }
 
-int generate_inpatient_id() {
+int generate_inpatient_id()
+{
     int max = 0;
     InpatientNode *cur = inpatient_list;
-    while (cur != NULL) {
-        if (cur->inpatient_id > max) max = cur->inpatient_id;
+    while (cur != NULL)
+    {
+        if (cur->inpatient_id > max)
+            max = cur->inpatient_id;
         cur = cur->next;
     }
     return max + 1;
 }
 
-int generate_apply_id() {
+int generate_apply_id()
+{
     int max = 0;
     InpatientApplyNode *cur = inpatient_apply_list;
-    while (cur != NULL) {
-        if (cur->apply_id > max) max = cur->apply_id;
+    while (cur != NULL)
+    {
+        if (cur->apply_id > max)
+            max = cur->apply_id;
         cur = cur->next;
     }
     return max + 1;
 }
 
-// Ëé∑ÂèñÊåáÂÆöÁßëÂÆ§ÂΩìÂâçÊéíÈòü‰∫∫Êï∞
+// ªÒ»°÷∏∂®ø∆ “µ±«∞≈≈∂”»À ˝
 
-int get_queue_count(int dept_id) {
+int get_queue_count(int dept_id)
+{
     int count = 0;
     RegistrationNode *cur = reg_list;
-    while (cur != NULL) {
+    while (cur != NULL)
+    {
         if (cur->dept_id == dept_id && cur->status == STATUS_PENDING_PAY)
             count++;
         cur = cur->next;
@@ -720,9 +912,10 @@ int get_queue_count(int dept_id) {
     return count;
 }
 
-// Áªü‰∏ÄÂêØÂä®Âä†ËΩΩ / ÈÄÄÂá∫‰øùÂ≠ò / ÈáäÊîæÂÜÖÂ≠ò
+// Õ≥“ª∆Ù∂Øº”‘ÿ / ÕÀ≥ˆ±£¥Ê /  Õ∑≈ƒ⁄¥Ê
 
-void load_all() {
+void load_all()
+{
     load_users_from_file();
     load_departments();
     load_exam_items();
@@ -736,7 +929,8 @@ void load_all() {
     load_inpatient_apply();
 }
 
-void save_all() {
+void save_all()
+{
     save_users_to_file();
     save_drugs();
     save_rooms();
@@ -748,9 +942,11 @@ void save_all() {
     save_inpatient_apply();
 }
 
-void free_all_lists() {
+void free_all_lists()
+{
     StaffNode *s = staff_list;
-    while (s != NULL) {
+    while (s != NULL)
+    {
         StaffNode *tmp = s;
         s = s->next;
         free(tmp);
@@ -758,7 +954,8 @@ void free_all_lists() {
     staff_list = NULL;
 
     PatientNode *p = patient_list;
-    while (p != NULL) {
+    while (p != NULL)
+    {
         PatientNode *tmp = p;
         p = p->next;
         free(tmp);
@@ -766,7 +963,8 @@ void free_all_lists() {
     patient_list = NULL;
 
     DepartmentNode *d = dept_list;
-    while (d != NULL) {
+    while (d != NULL)
+    {
         DepartmentNode *tmp = d;
         d = d->next;
         free(tmp);
@@ -774,7 +972,8 @@ void free_all_lists() {
     dept_list = NULL;
 
     ExamItemNode *e = exam_item_list;
-    while (e != NULL) {
+    while (e != NULL)
+    {
         ExamItemNode *tmp = e;
         e = e->next;
         free(tmp);
@@ -782,7 +981,8 @@ void free_all_lists() {
     exam_item_list = NULL;
 
     DrugNode *dr = drug_list;
-    while (dr != NULL) {
+    while (dr != NULL)
+    {
         DrugNode *tmp = dr;
         dr = dr->next;
         free(tmp);
@@ -790,7 +990,8 @@ void free_all_lists() {
     drug_list = NULL;
 
     RoomNode *r = room_list;
-    while (r != NULL) {
+    while (r != NULL)
+    {
         RoomNode *tmp = r;
         r = r->next;
         free(tmp);
@@ -798,7 +999,8 @@ void free_all_lists() {
     room_list = NULL;
 
     RegistrationNode *rg = reg_list;
-    while (rg != NULL) {
+    while (rg != NULL)
+    {
         RegistrationNode *tmp = rg;
         rg = rg->next;
         free(tmp);
@@ -806,7 +1008,8 @@ void free_all_lists() {
     reg_list = NULL;
 
     MedicalRecordNode *mr = record_list;
-    while (mr != NULL) {
+    while (mr != NULL)
+    {
         MedicalRecordNode *tmp = mr;
         mr = mr->next;
         free(tmp);
@@ -814,7 +1017,8 @@ void free_all_lists() {
     record_list = NULL;
 
     ExamOrderNode *eo = exam_order_list;
-    while (eo != NULL) {
+    while (eo != NULL)
+    {
         ExamOrderNode *tmp = eo;
         eo = eo->next;
         free(tmp);
@@ -822,7 +1026,8 @@ void free_all_lists() {
     exam_order_list = NULL;
 
     PrescriptionNode *pr = prescription_list;
-    while (pr != NULL) {
+    while (pr != NULL)
+    {
         PrescriptionNode *tmp = pr;
         pr = pr->next;
         free(tmp);
@@ -830,7 +1035,8 @@ void free_all_lists() {
     prescription_list = NULL;
 
     InpatientNode *ip = inpatient_list;
-    while (ip != NULL) {
+    while (ip != NULL)
+    {
         InpatientNode *tmp = ip;
         ip = ip->next;
         free(tmp);
@@ -838,10 +1044,129 @@ void free_all_lists() {
     inpatient_list = NULL;
 
     InpatientApplyNode *ia = inpatient_apply_list;
-    while (ia != NULL) {
+    while (ia != NULL)
+    {
         InpatientApplyNode *tmp = ia;
         ia = ia->next;
         free(tmp);
     }
     inpatient_apply_list = NULL;
+}
+
+//  ‰»Îª∫≥Â«¯«Âø’
+void clear_input()
+{
+    int c;
+    while ((c = getchar()) != '\n' && c != EOF)
+        ;
+}
+
+// yes/no —°‘Ò
+int prompt_choice(const char *prompt, const char *options[], int count)
+{
+    printf("\n%s\n", prompt);
+    for (int i = 0; i < count; i++)
+    {
+        printf("  %d. %s\n", i + 1, options[i]);
+    }
+    printf("«Î ‰»Î—°œÓ(1-%d): ", count);
+
+    int choice;
+    while (getchar() != '\n')
+        ;
+    if (scanf("%d", &choice) != 1)
+    {
+        while (getchar() != '\n')
+            ;
+        return -1;
+    }
+    while (getchar() != '\n')
+        ;
+
+    if (choice < 1 || choice > count)
+        return -1;
+    return choice - 1;
+}
+
+int prompt_yes_no(const char *prompt)
+{
+    char c;
+    while (1)
+    {
+        printf("\n%s (y/n): ", prompt);
+        c = getchar();
+
+        // ºÏ≤È∫Û√Ê «∑Òªπ”–∂‡”‡◊÷∑˚
+        char next = getchar();
+        if (next != '\n')
+        {
+            // ”–∂‡”‡◊÷∑˚£¨«Âø’ª∫≥Â«¯£¨≈–Œﬁ–ß
+            while (getchar() != '\n')
+                ;
+            printf(" ‰»ÎŒﬁ–ß£¨«Î ‰»Î y ªÚ n°£");
+            continue;
+        }
+
+        if (c == 'y' || c == 'Y')
+            return 1;
+        if (c == 'n' || c == 'N')
+            return 0;
+        printf(" ‰»ÎŒﬁ–ß£¨«Î ‰»Î y ªÚ n°£");
+    }
+}
+
+//√˚◊÷ «∑Ò∫œ∑®
+int is_valid_name(const char *s)
+{
+    int len = strlen(s);
+    if (len == 0) return 0;
+
+    int i = 0;
+    int last_was_space = 0;
+    int has_chinese = 0, has_english = 0;
+
+    while (i < len)
+    {
+        unsigned char ch = (unsigned char)s[i];
+
+        if (ch >= 0x81 && ch <= 0xFE)
+        {
+            if (i + 1 >= len) return 0;
+            unsigned char ch2 = (unsigned char)s[i + 1];
+            if (ch2 < 0x40 || ch2 > 0xFE) return 0;
+            has_chinese = 1;
+            last_was_space = 0;
+            i += 2;
+        }
+        else if (isalpha(ch))
+        {
+            has_english = 1;
+            last_was_space = 0;
+            i++;
+        }
+        else if (ch == ' ')
+        {
+            if (has_chinese) return 0;
+            if (last_was_space) return 0;
+            if (i == 0) return 0;
+            last_was_space = 1;
+            i++;
+        }
+        else
+        {
+            return 0;
+        }
+    }
+
+    if (last_was_space) return 0;
+    if (has_chinese && has_english) return 0;
+    return 1;
+}
+
+int is_valid_password(const char *s)
+{
+    if (strlen(s) == 0) return 0;
+    for (int i = 0; s[i]; i++)
+        if (s[i] == ' ') return 0;
+    return 1;
 }

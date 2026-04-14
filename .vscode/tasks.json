@@ -10,7 +10,8 @@
                 "${file}",
                 "-o",
                 "${fileDirname}\\${fileBasenameNoExtension}.exe",
-                ""
+                "-fexec-charset=GBK",
+                "-finput-charset=GBK"
             ],
             "options": {
                 "cwd": "D:/mingw64/bin"
