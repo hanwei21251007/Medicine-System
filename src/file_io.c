@@ -56,7 +56,7 @@ const char *get_title_name(DoctorTitle title)
         return "副主任医师";
     if (title == TITLE_CHIEF)
         return "主任医师";
-    return "未知";
+    return "????";
 }
 
 // 用户数据读写（staff + patient 共用一个文件）
@@ -118,13 +118,12 @@ void load_users_from_file()
             PatientNode *node = (PatientNode *)malloc(sizeof(PatientNode));
             if (node == NULL)
                 continue;
-            int role, title, dept, is_deleted;
-            if (sscanf(line, "PATIENT,%d,%49[^,],%49[^,],%d,%d,%d,%18s,%d",
+            int role;
+            if (sscanf(line, "PATIENT,%d,%49[^,],%49[^,],%d,%18[^,],%d",
                        &node->medical_id, node->password, node->name,
-                       &role, &title, &dept, node->id_card, &node->is_deleted) == 8)
+                       &role, node->id_card, &node->is_deleted) == 6)
             {
-                node->gender = 0;
-                node->age = 0;
+                node->role = (UserRole)role;
                 node->next = NULL;
                 if (patient_list == NULL)
                 {
@@ -170,8 +169,8 @@ void save_users_to_file()
     PatientNode *p = patient_list;
     while (p != NULL)
     {
-        fprintf(fp, "PATIENT,%d,%s,%s,4,0,0,%s,%d\n",
-                p->medical_id, p->password, p->name, p->id_card, p->is_deleted);
+        fprintf(fp, "PATIENT,%d,%s,%s,%d,%s,%d\n",
+                p->medical_id, p->password, p->name, (int)p->role, p->id_card, p->is_deleted);
         p = p->next;
     }
 

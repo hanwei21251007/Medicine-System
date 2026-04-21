@@ -601,7 +601,7 @@ static void doctor_apply_inpatient(int patient_id)
 
     save_all();
     printf("住院申请已提交！申请ID：%d\n", node->apply_id);
-    printf("请等待管理员审核。\n");
+    printf("请等待病房员工审核。\n");
     printf("按enter键返回...");
     getchar();
 }

@@ -295,6 +295,7 @@ int patient_register_with_id(const char *id_card_input)
         return 0;
     }
     node->is_deleted  = 0;
+    node->role        = ROLE_PATIENT;
     node->medical_id  = generate_medical_id();
     strncpy(node->id_card,  id_card,  sizeof(node->id_card)  - 1);
     strncpy(node->name,     name,     sizeof(node->name)     - 1);

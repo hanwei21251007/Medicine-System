@@ -70,8 +70,7 @@ typedef struct PatientNode {
     char id_card[19];      //身份证号，仅用于登录验证，医护人员不可见 
     char password[50];
     char name[50];
-    int  gender;           // 1=男 2=女
-    int  age;
+    UserRole role;         // 固定为 ROLE_PATIENT=5
     int  is_deleted;       // 0=正常, 1=已删除（逻辑删除）
     struct PatientNode *next;
 } PatientNode;
