@@ -4,6 +4,7 @@
 #include <time.h>
 #include "../include/structs.h"
 
+
 // 外部链表和函数声明
 extern StaffNode *staff_list;
 extern PatientNode *patient_list;
@@ -24,18 +25,7 @@ extern int get_queue_count(int dept_id);
 extern float get_title_fee(DoctorTitle title);
 extern const char *get_title_name(DoctorTitle title);
 extern const void clear_input();
-
-// 内部工具函数
-
-// 操作失败后询问是否重试
-static int ask_retry()
-{
-    printf("操作失败，是否重新输入？(y=重试 / n=返回): ");
-    char c;
-    scanf("%c", &c);
-    clear_input();
-    return (c == 'y' || c == 'Y') ? 1 : 0;
-}
+extern void change_password();
 
 // 获取当前时间字符串
 static void get_now(char *buf)
@@ -132,6 +122,8 @@ static const char *get_item_status_name(ItemStatus status)
         return "已缴费待执行";
     case STATUS_DONE:
         return "已完成";
+    case STATUS_CANCELLED:
+        return "已取消";
     default:
         return "未知";
     }
@@ -153,8 +145,9 @@ void patient_register_outpatient()
     DepartmentNode *dept = dept_list;
     while (dept != NULL)
     {
-        printf("%-6d %-16s %.1f元\n",
-               dept->dept_id, dept->dept_name, dept->base_reg_fee);
+        if (dept->is_deleted == 0)   // 只显示正常科室，停用科室不出现在列表
+            printf("%-6d %-16s %.1f元\n",
+                   dept->dept_id, dept->dept_name, dept->base_reg_fee);
         dept = dept->next;
     }
 
@@ -168,7 +161,7 @@ void patient_register_outpatient()
         {
             clear_input();
             printf("输入无效。\n");
-            if (!ask_retry())
+            if (!prompt_yes_no("是否重试？"))
                 return;
             continue;
         }
@@ -179,17 +172,47 @@ void patient_register_outpatient()
         {
             if (d->dept_id == dept_id)
             {
-                chosen_dept = d;
+                if (d->is_deleted == 1)
+                {
+                    printf("该科室已停用，无法挂号，请选择其他科室。\n");
+                    if (!prompt_yes_no("是否重新选择？"))
+                        return;
+                }
+                else
+                {
+                    chosen_dept = d;
+                }
                 break;
             }
             d = d->next;
         }
-        if (chosen_dept == NULL)
+        if (chosen_dept == NULL && d == NULL)
         {
             printf("未找到该科室。\n");
-            if (!ask_retry())
+            if (!prompt_yes_no("是否重试？"))
                 return;
         }
+    }
+
+    // 检查该患者在该科室是否已有未完成的挂号
+    RegistrationNode *chk = reg_list;
+    while (chk != NULL)
+    {
+        if (chk->patient_id == current_user.user_id &&
+            chk->dept_id    == chosen_dept->dept_id  &&
+            chk->is_cancelled == 0                   &&
+            chk->status != STATUS_DONE)
+        {
+            printf("\n您在【%s】已有一条未完成的挂号（挂号ID：%d，状态：%s）。\n",
+                   chosen_dept->dept_name,
+                   chk->reg_id,
+                   get_reg_status_name(chk));
+            printf("同一科室只能同时挂1次，请等待本次就诊完成或号码作废后再挂号。\n");
+            printf("\n按enter键返回...");
+            getchar();
+            return;
+        }
+        chk = chk->next;
     }
 
     // 显示该科室医生列表
@@ -201,7 +224,7 @@ void patient_register_outpatient()
     int doc_count = 0;
     while (s != NULL)
     {
-        if (s->role == ROLE_DOCTOR && s->dept_id == chosen_dept->dept_id)
+        if (s->role == ROLE_DOCTOR && s->dept_id == chosen_dept->dept_id && s->is_deleted == 0)
         {
             float fee = chosen_dept->base_reg_fee + get_title_fee(s->title);
             printf("%-8d %-10s %-12s %.1f元\n",
@@ -214,7 +237,7 @@ void patient_register_outpatient()
     if (doc_count == 0)
     {
         printf("该科室暂无医生。\n");
-        printf("按任意键返回...");
+        printf("按enter键返回...");
         getchar();
         return;
     }
@@ -229,7 +252,7 @@ void patient_register_outpatient()
         {
             clear_input();
             printf("输入无效。\n");
-            if (!ask_retry())
+            if (!prompt_yes_no("是否重试？"))
                 return;
             continue;
         }
@@ -239,7 +262,7 @@ void patient_register_outpatient()
         while (d != NULL)
         {
             if (d->id == doc_id && d->role == ROLE_DOCTOR &&
-                d->dept_id == chosen_dept->dept_id)
+                d->dept_id == chosen_dept->dept_id && d->is_deleted == 0)
             {
                 chosen_doctor = d;
                 break;
@@ -249,7 +272,7 @@ void patient_register_outpatient()
         if (chosen_doctor == NULL)
         {
             printf("未找到该医生，请从列表中选择。\n");
-            if (!ask_retry())
+            if (!prompt_yes_no("是否重试？"))
                 return;
         }
     }
@@ -263,7 +286,7 @@ void patient_register_outpatient()
     if (node == NULL)
     {
         printf("内存分配失败，挂号取消。\n");
-        printf("按任意键返回...");
+        printf("按enter键返回...");
         getchar();
         return;
     }
@@ -302,7 +325,7 @@ void patient_register_outpatient()
     printf("  挂号费：%.1f元\n", reg_fee);
     printf("  挂号时间：%s\n", node->date);
     printf("  请在60秒内到诊室等候，超时号码将自动作废。\n");
-    printf("\n按任意键返回...");
+    printf("\n按enter键返回...");
     getchar();
 }
 
@@ -366,7 +389,7 @@ void patient_view_records()
     if (rec_count == 0)
         printf("暂无病历记录。\n");
 
-    printf("\n按任意键返回...");
+    printf("\n按enter键返回...");
     getchar();
 }
 
@@ -412,24 +435,34 @@ void patient_view_exams()
     if (count == 0)
     {
         printf("暂无检查记录。\n");
-        printf("\n按任意键返回...");
+        printf("\n按enter键返回...");
         getchar();
         return;
     }
 
-    // 缴费操作
-    if (prompt_yes_no("是否为某项检查缴费？"))
+    // 缴费/取消操作
+    printf("\n请选择操作：\n");
+    printf("  1. 为某项检查缴费\n");
+    printf("  2. 取消某项检查账单\n");
+    printf("  0. 暂不操作\n");
+    printf("请输入您的选择: ");
+
+    int op;
+    if (scanf("%d", &op) != 1) { clear_input(); op = 0; }
+    clear_input();
+
+    if (op == 1 || op == 2)
     {
         ExamOrderNode *target = NULL;
         while (target == NULL)
         {
-            printf("输入要缴费的申请ID: ");
+            printf(op == 1 ? "输入要缴费的申请ID: " : "输入要取消的申请ID: ");
             int order_id;
             if (scanf("%d", &order_id) != 1)
             {
                 clear_input();
                 printf("输入无效。\n");
-                if (!ask_retry())
+                if (!prompt_yes_no("是否重试？"))
                     break;
                 continue;
             }
@@ -450,29 +483,47 @@ void patient_view_exams()
             if (target == NULL)
             {
                 printf("未找到该检查申请，或该申请不在待缴费状态。\n");
-                if (!ask_retry())
+                if (!prompt_yes_no("是否重试？"))
                     break;
             }
         }
 
         if (target != NULL)
         {
-            char msg[100];
-            snprintf(msg, sizeof(msg), "检查费用：%.1f元，确认缴费？", target->price);
-            if (prompt_yes_no(msg))
+            if (op == 1)
             {
-                target->status = STATUS_PENDING_DO;
-                save_all();
-                printf("缴费成功！医生可为您填写检查结果。\n");
+                char msg[100];
+                snprintf(msg, sizeof(msg), "检查费用：%.1f元，确认缴费？", target->price);
+                if (prompt_yes_no(msg))
+                {
+                    target->status = STATUS_PENDING_DO;
+                    save_all();
+                    printf("缴费成功！医生可为您填写检查结果。\n");
+                }
+                else
+                {
+                    printf("已取消操作。\n");
+                }
             }
             else
             {
-                printf("已取消。\n");
+                char msg[100];
+                snprintf(msg, sizeof(msg), "确认取消该检查账单（%.1f元）？取消后无法恢复。", target->price);
+                if (prompt_yes_no(msg))
+                {
+                    target->status = STATUS_CANCELLED;
+                    save_all();
+                    printf("账单已取消。\n");
+                }
+                else
+                {
+                    printf("已取消操作。\n");
+                }
             }
         }
     }
 
-    printf("\n按任意键返回...");
+    printf("\n按enter键返回...");
     getchar();
 }
 
@@ -508,24 +559,34 @@ void patient_view_prescriptions()
     if (count == 0)
     {
         printf("暂无处方记录。\n");
-        printf("\n按任意键返回...");
+        printf("\n按enter键返回...");
         getchar();
         return;
     }
 
-    // 缴费操作
-    if (prompt_yes_no("是否为某条处方缴费？"))
+    // 缴费/取消操作
+    printf("\n请选择操作：\n");
+    printf("  1. 为某条处方缴费\n");
+    printf("  2. 取消某条处方账单\n");
+    printf("  0. 暂不操作\n");
+    printf("请输入您的选择: ");
+
+    int op;
+    if (scanf("%d", &op) != 1) { clear_input(); op = 0; }
+    clear_input();
+
+    if (op == 1 || op == 2)
     {
         PrescriptionNode *target = NULL;
         while (target == NULL)
         {
-            printf("输入要缴费的处方ID: ");
+            printf(op == 1 ? "输入要缴费的处方ID: " : "输入要取消的处方ID: ");
             int presc_id;
             if (scanf("%d", &presc_id) != 1)
             {
                 clear_input();
                 printf("输入无效。\n");
-                if (!ask_retry())
+                if (!prompt_yes_no("是否重试？"))
                     break;
                 continue;
             }
@@ -546,26 +607,47 @@ void patient_view_prescriptions()
             if (target == NULL)
             {
                 printf("未找到该处方，或该处方不在待缴费状态。\n");
-                if (!ask_retry())
+                if (!prompt_yes_no("是否重试？"))
                     break;
             }
         }
 
         if (target != NULL)
         {
-            char msg[100];
-snprintf(msg, sizeof(msg), "处方费用：%.1f元，确认缴费？", target->price);
-if (prompt_yes_no(msg)) {
-    target->status = STATUS_PENDING_DO;
-    save_all();
-    printf("缴费成功！药剂师可为您发药。\n");
-} else {
-    printf("已取消。\n");
-}
+            if (op == 1)
+            {
+                char msg[100];
+                snprintf(msg, sizeof(msg), "处方费用：%.1f元，确认缴费？", target->price);
+                if (prompt_yes_no(msg))
+                {
+                    target->status = STATUS_PENDING_DO;
+                    save_all();
+                    printf("缴费成功！药剂师可为您发药。\n");
+                }
+                else
+                {
+                    printf("已取消操作。\n");
+                }
+            }
+            else
+            {
+                char msg[100];
+                snprintf(msg, sizeof(msg), "确认取消该处方账单（%.1f元）？取消后无法恢复。", target->price);
+                if (prompt_yes_no(msg))
+                {
+                    target->status = STATUS_CANCELLED;
+                    save_all();
+                    printf("账单已取消。\n");
+                }
+                else
+                {
+                    printf("已取消操作。\n");
+                }
+            }
         }
     }
 
-    printf("\n按任意键返回...");
+    printf("\n按enter键返回...");
     getchar();
 }
 
@@ -597,7 +679,7 @@ void patient_view_inpatient()
             }
             else
             {
-                printf("当前累计费用：%.1f元\n", cur->total_fee);
+                printf("当前累计费用：%.1f元\n", calc_current_fee(cur));
             }
             printf("状态：%s\n", status_str);
             printf("----------------------------\n");
@@ -608,13 +690,11 @@ void patient_view_inpatient()
     if (count == 0)
         printf("暂无住院记录。\n");
 
-    printf("\n按任意键返回...");
+    printf("\n按enter键返回...");
     getchar();
 }
 
-// ════════════════════════════════════════
 // 患者主菜单
-// ════════════════════════════════════════
 
 void patient_menu()
 {
@@ -622,14 +702,15 @@ void patient_menu()
     {
         system("cls");
         printf("╔════════════════════════════════════════╗\n");
-        printf("║  欢迎，%-16s              ║\n", current_user.user_name);
-        printf("║  病历号：%-6d                        ║\n", current_user.user_id);
+        printf("║  欢迎，%-16s                            ║\n", current_user.user_name);
+        printf("║  病历号：%-6d                           ║\n", current_user.user_id);
         printf("╠════════════════════════════════════════╣\n");
         printf("║  1. 门诊挂号                           ║\n");
         printf("║  2. 就诊记录                           ║\n");
         printf("║  3. 检查记录                           ║\n");
         printf("║  4. 处方记录                           ║\n");
         printf("║  5. 住院信息                           ║\n");
+        printf("║  6. 修改密码                           ║\n");
         printf("║  0. 注销登录                           ║\n");
         printf("╚════════════════════════════════════════╝\n");
         printf("\n请输入您的选择: ");
@@ -639,7 +720,7 @@ void patient_menu()
         {
             clear_input();
             printf("输入无效，请重新输入。\n");
-            printf("按任意键继续...");
+            printf("按enter键继续...");
             getchar();
             continue;
         }
@@ -648,10 +729,10 @@ void patient_menu()
         if (choice == 0)
             break;
 
-        if (choice < 1 || choice > 5)
+        if (choice < 1 || choice > 6)
         {
             printf("输入无效，请重新输入。\n");
-            printf("按任意键继续...");
+            printf("按enter键继续...");
             getchar();
             continue;
         }
@@ -672,6 +753,9 @@ void patient_menu()
             break;
         case 5:
             patient_view_inpatient();
+            break;
+        case 6:
+            change_password();
             break;
         }
     }

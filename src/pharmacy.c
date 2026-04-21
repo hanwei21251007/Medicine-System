@@ -4,6 +4,7 @@
 #include <time.h>
 #include "../include/structs.h"
 
+
 // 外部链表和函数声明
 extern PatientNode *patient_list;
 extern DrugNode *drug_list;
@@ -12,18 +13,8 @@ extern CurrentUser current_user;
 
 extern void save_all();
 extern const void clear_input();
-
-// 内部工具函数
-
-// 操作失败后询问是否重试
-static int ask_retry()
-{
-    printf("操作失败，是否重新输入？(y=重试 / n=返回): ");
-    char c;
-    scanf("%c", &c);
-    clear_input();
-    return (c == 'y' || c == 'Y') ? 1 : 0;
-}
+extern int prompt_yes_no(const char *prompt);
+extern void change_password();
 
 // 根据病历号查患者姓名
 static const char *get_patient_name(int medical_id)
@@ -51,48 +42,7 @@ static const char *get_drug_name(int drug_id)
     return "未知药品";
 }
 
-// ════════════════════════════════════════
-// 待发药处方列表
-// ════════════════════════════════════════
-
-void pharmacy_view_pending()
-{
-    system("cls");
-    printf("╔════════════════════════════════════════╗\n");
-    printf("║          待发药处方列表                ║\n");
-    printf("╚════════════════════════════════════════╝\n\n");
-
-    printf("%-8s %-10s %-20s %-6s %-8s\n",
-           "处方ID", "患者姓名", "药品名称", "数量", "总价");
-    printf("----------------------------------------------------\n");
-
-    PrescriptionNode *cur = prescription_list;
-    int count = 0;
-    while (cur != NULL)
-    {
-        if (cur->status == STATUS_PENDING_DO)
-        {
-            printf("%-8d %-10s %-20s %-6d %.1f元\n",
-                   cur->prescription_id,
-                   get_patient_name(cur->patient_id),
-                   get_drug_name(cur->drug_id),
-                   cur->quantity,
-                   cur->price);
-            count++;
-        }
-        cur = cur->next;
-    }
-
-    if (count == 0)
-        printf("当前无待发药处方。\n");
-
-    printf("\n按任意键返回...");
-    getchar();
-}
-
-// ════════════════════════════════════════
 // 发药操作
-// ════════════════════════════════════════
 
 void pharmacy_dispense()
 {
@@ -127,7 +77,7 @@ void pharmacy_dispense()
     if (count == 0)
     {
         printf("当前无待发药处方。\n");
-        printf("按任意键返回...");
+        printf("按enter键返回...");
         getchar();
         return;
     }
@@ -142,7 +92,7 @@ void pharmacy_dispense()
         {
             clear_input();
             printf("输入无效。\n");
-            if (!ask_retry())
+            if (!prompt_yes_no("是否重试？"))
                 return;
             continue;
         }
@@ -164,7 +114,7 @@ void pharmacy_dispense()
         if (target == NULL)
         {
             printf("未找到该处方，或该处方不在待发药状态。\n");
-            if (!ask_retry())
+            if (!prompt_yes_no("是否重试？"))
                 return;
         }
     }
@@ -181,7 +131,7 @@ void pharmacy_dispense()
     if (drug == NULL)
     {
         printf("未找到对应药品信息，无法发药。\n");
-        printf("按任意键返回...");
+        printf("按enter键返回...");
         getchar();
         return;
     }
@@ -192,7 +142,7 @@ void pharmacy_dispense()
         printf("库存不足！当前库存 %d 盒，处方需要 %d 盒，无法发药。\n",
                drug->stock, target->quantity);
         printf("请先补充库存。\n");
-        printf("按任意键返回...");
+        printf("按enter键返回...");
         getchar();
         return;
     }
@@ -208,7 +158,7 @@ void pharmacy_dispense()
     if (!prompt_yes_no("确认发药？"))
     {
         printf("已取消。\n");
-        printf("按任意键返回...");
+        printf("按enter键返回...");
         getchar();
         return;
     }
@@ -227,56 +177,75 @@ void pharmacy_dispense()
                drug->drug_name, drug->warning_line);
     }
 
-    printf("按任意键返回...");
+    printf("按enter键返回...");
     getchar();
 }
 
-// ════════════════════════════════════════
 // 药品库存查询
-// ════════════════════════════════════════
 
 void pharmacy_view_stock()
 {
-    system("cls");
-    printf("╔════════════════════════════════════════╗\n");
-    printf("║            药品库存查询                ║\n");
-    printf("╚════════════════════════════════════════╝\n\n");
-
-    printf("%-6s %-20s %-8s %-8s %-8s\n",
-           "药品ID", "药品名称", "单价", "库存", "预警线");
-    printf("----------------------------------------------------\n");
-
-    DrugNode *cur = drug_list;
-    int count = 0;
-    while (cur != NULL)
+    while (1)
     {
-        // 库存低于预警线时加标注
-        if (cur->stock <= cur->warning_line)
+        system("cls");
+        printf("╔════════════════════════════════════════╗\n");
+        printf("║            药品库存查询                ║\n");
+        printf("╚════════════════════════════════════════╝\n\n");
+
+        // 输入药品名称检索（支持模糊匹配）
+        char keyword[64];
+        printf("输入药品名称检索（模糊匹配，输入0返回）: ");
+        fgets(keyword, sizeof(keyword), stdin);
+        keyword[strcspn(keyword, "\r\n")] = '\0';
+
+        if (strcmp(keyword, "0") == 0)
+            return;
+
+        if (strlen(keyword) == 0)
         {
-            printf("%-6d %-20s %-8.1f %-8d %-8d [库存不足]\n",
-                   cur->drug_id, cur->drug_name,
-                   cur->price, cur->stock, cur->warning_line);
+            printf("输入无效，请重新输入。\n");
+            printf("按enter键继续...");
+            getchar();
+            continue;
         }
-        else
+
+        // 模糊匹配，显示匹配药品的库存和预警线
+        printf("\n%-6s %-20s %-8s %-8s %-8s\n",
+               "药品ID", "药品名称", "单价", "库存", "预警线");
+        printf("----------------------------------------------------\n");
+
+        int match_count = 0;
+        DrugNode *cur = drug_list;
+        while (cur != NULL)
         {
-            printf("%-6d %-20s %-8.1f %-8d %-8d\n",
-                   cur->drug_id, cur->drug_name,
-                   cur->price, cur->stock, cur->warning_line);
+            if (strstr(cur->drug_name, keyword) != NULL)
+            {
+                if (cur->stock <= cur->warning_line)
+                    printf("%-6d %-20s %-8.1f %-8d %-8d [库存不足]\n",
+                           cur->drug_id, cur->drug_name,
+                           cur->price, cur->stock, cur->warning_line);
+                else
+                    printf("%-6d %-20s %-8.1f %-8d %-8d\n",
+                           cur->drug_id, cur->drug_name,
+                           cur->price, cur->stock, cur->warning_line);
+                match_count++;
+            }
+            cur = cur->next;
         }
-        count++;
-        cur = cur->next;
+
+        if (match_count == 0)
+        {
+            printf("未找到匹配的药品，请重新检索。\n");
+            printf("按enter键继续...");
+            getchar();
+            continue;
+        }
+
+        printf("\n按enter键继续检索...");
+        getchar();
     }
-
-    if (count == 0)
-        printf("暂无药品信息。\n");
-
-    printf("\n按任意键返回...");
-    getchar();
 }
-
-// ════════════════════════════════════════
 // 库存预警列表
-// ════════════════════════════════════════
 
 void pharmacy_view_warning()
 {
@@ -306,13 +275,11 @@ void pharmacy_view_warning()
     if (count == 0)
         printf("当前无库存预警药品，库存充足。\n");
 
-    printf("\n按任意键返回...");
+    printf("\n按enter键返回...");
     getchar();
 }
 
-// ════════════════════════════════════════
 // 药剂师主菜单
-// ════════════════════════════════════════
 
 void pharmacy_menu()
 {
@@ -320,12 +287,12 @@ void pharmacy_menu()
     {
         system("cls");
         printf("╔════════════════════════════════════════╗\n");
-        printf("║  欢迎，%-16s              ║\n", current_user.user_name);
+        printf("║  欢迎，%-16s                            ║\n", current_user.user_name);
         printf("╠════════════════════════════════════════╣\n");
-        printf("║  1. 待发药处方列表                     ║\n");
-        printf("║  2. 发药操作                           ║\n");
-        printf("║  3. 药品库存查询                       ║\n");
-        printf("║  4. 库存预警                           ║\n");
+        printf("║  1. 发药操作                           ║\n");
+        printf("║  2. 药品库存查询                       ║\n");
+        printf("║  3. 库存预警                           ║\n");
+        printf("║  4. 修改密码                           ║\n");
         printf("║  0. 注销登录                           ║\n");
         printf("╚════════════════════════════════════════╝\n");
         printf("\n请输入您的选择: ");
@@ -335,7 +302,7 @@ void pharmacy_menu()
         {
             clear_input();
             printf("输入无效，请重新输入。\n");
-            printf("按任意键继续...");
+            printf("按enter键继续...");
             getchar();
             continue;
         }
@@ -347,24 +314,25 @@ void pharmacy_menu()
         if (choice < 1 || choice > 4)
         {
             printf("输入无效，请重新输入。\n");
-            printf("按任意键继续...");
+            printf("按enter键继续...");
             getchar();
             continue;
         }
 
         switch (choice)
         {
+
         case 1:
-            pharmacy_view_pending();
-            break;
-        case 2:
             pharmacy_dispense();
             break;
-        case 3:
+        case 2:
             pharmacy_view_stock();
             break;
-        case 4:
+        case 3:
             pharmacy_view_warning();
+            break;
+        case 4:
+            change_password();
             break;
         }
     }

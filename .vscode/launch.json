@@ -8,8 +8,8 @@
       "args": [],
       "stopAtEntry": false,
       "externalConsole": true,
-      "cwd": "c:/Users/lenovo/Desktop/Medicine-System/src",
-      "program": "c:/Users/lenovo/Desktop/Medicine-System/src/build/Debug/outDebug",
+      "cwd": "c:/Users/lenovo/Desktop/Medicine-System",
+      "program": "c:/Users/lenovo/Desktop/Medicine-System/build/Debug/outDebug",
       "MIMode": "gdb",
       "miDebuggerPath": "gdb",
       "setupCommands": [

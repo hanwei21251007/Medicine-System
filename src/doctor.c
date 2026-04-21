@@ -17,28 +17,18 @@ extern PrescriptionNode *prescription_list;
 extern InpatientApplyNode *inpatient_apply_list;
 extern CurrentUser current_user;
 
+// 外部函数
 extern void save_all();
-extern int generate_record_id();
+extern void clear_input();
 extern int generate_exam_order_id();
 extern int generate_prescription_id();
 extern int generate_apply_id();
-extern const void clear_input();
+extern int generate_record_id();
+extern void change_password();
 
 // 前向声明
 static void doctor_prescribe(int record_id, int patient_id);
 static void doctor_apply_inpatient(int patient_id);
-
-// 内部工具函数
-
-// 操作失败后询问是否重试
-static int ask_retry()
-{
-    printf("操作失败，是否重新输入？(y=重试 / n=返回): ");
-    char c;
-    scanf("%c", &c);
-    clear_input();
-    return (c == 'y' || c == 'Y') ? 1 : 0;
-}
 
 // 获取当前时间字符串
 static void get_now(char *buf)
@@ -92,10 +82,8 @@ static const char *get_dept_name(int dept_id)
     return "未知科室";
 }
 
-// ════════════════════════════════════════
 // 超时作废检查（每次刷新候诊列表时触发）
 // 超过60秒未接诊的号自动作废
-// ════════════════════════════════════════
 
 static void check_timeout()
 {
@@ -123,57 +111,12 @@ static void check_timeout()
     if (updated)
     {
         save_all();
-        printf("按任意键继续...");
+        printf("按enter键继续...");
         getchar();
     }
 }
 
-// ════════════════════════════════════════
-// 查看候诊队列
-// ════════════════════════════════════════
-
-void doctor_view_queue()
-{
-    system("cls");
-    printf("╔════════════════════════════════════════╗\n");
-    printf("║            候诊队列                    ║\n");
-    printf("╚════════════════════════════════════════╝\n\n");
-
-    // 先触发超时检查
-    check_timeout();
-
-    printf("%-6s %-10s %-6s %-22s\n",
-           "挂号ID", "患者姓名", "排队号", "挂号时间");
-    printf("----------------------------------------------------\n");
-
-    RegistrationNode *cur = reg_list;
-    int count = 0;
-    while (cur != NULL)
-    {
-        if (cur->doctor_id == current_user.user_id &&
-            cur->status == STATUS_PENDING_PAY &&
-            cur->is_cancelled == 0)
-        {
-            printf("%-6d %-10s %-6d %-22s\n",
-                   cur->reg_id,
-                   get_patient_name(cur->patient_id),
-                   cur->queue_num,
-                   cur->date);
-            count++;
-        }
-        cur = cur->next;
-    }
-
-    if (count == 0)
-        printf("当前无候诊患者。\n");
-
-    printf("\n按任意键返回...");
-    getchar();
-}
-
-// ════════════════════════════════════════
 // 开检查申请
-// ════════════════════════════════════════
 
 static void doctor_order_exam(int record_id, int patient_id)
 {
@@ -204,7 +147,7 @@ static void doctor_order_exam(int record_id, int patient_id)
     if (item_count == 0)
     {
         printf("本科室暂无检查项目。\n");
-        printf("按任意键返回...");
+        printf("按enter键返回...");
         getchar();
         return;
     }
@@ -219,7 +162,7 @@ static void doctor_order_exam(int record_id, int patient_id)
         {
             clear_input();
             printf("输入无效。\n");
-            if (!ask_retry())
+            if (!prompt_yes_no("是否重试？"))
                 return;
             continue;
         }
@@ -241,7 +184,7 @@ static void doctor_order_exam(int record_id, int patient_id)
         if (chosen == NULL)
         {
             printf("未找到该检查项目，请从列表中选择。\n");
-            if (!ask_retry())
+            if (!prompt_yes_no("是否重试？"))
                 return;
         }
     }
@@ -251,7 +194,7 @@ static void doctor_order_exam(int record_id, int patient_id)
     if (node == NULL)
     {
         printf("内存分配失败。\n");
-        printf("按任意键返回...");
+        printf("按enter键返回...");
         getchar();
         return;
     }
@@ -281,13 +224,11 @@ static void doctor_order_exam(int record_id, int patient_id)
     printf("检查申请已开具！项目：%s，费用：%.1f元\n",
            chosen->exam_name, chosen->price);
     printf("患者缴费后可进行检查。\n");
-    printf("按任意键返回...");
+    printf("按enter键返回...");
     getchar();
 }
 
-// ════════════════════════════════════════
 // 填写检查结果
-// ════════════════════════════════════════
 
 static void doctor_fill_exam_result()
 {
@@ -345,7 +286,7 @@ static void doctor_fill_exam_result()
     if (count == 0)
     {
         printf("暂无待填写结果的检查单。\n");
-        printf("按任意键返回...");
+        printf("按enter键返回...");
         getchar();
         return;
     }
@@ -360,7 +301,7 @@ static void doctor_fill_exam_result()
         {
             clear_input();
             printf("输入无效。\n");
-            if (!ask_retry())
+            if (!prompt_yes_no("是否重试？"))
                 return;
             continue;
         }
@@ -382,11 +323,11 @@ static void doctor_fill_exam_result()
         if (target == NULL)
         {
             printf("未找到该检查单。\n");
-            if (!ask_retry())
+            if (!prompt_yes_no("是否重试？"))
                 return;
         }
     }
-
+    // 第一次选结果时写入并保存
     printf("请选择检查结果：\n");
     printf("1. 正常，无需处理\n");
     printf("2. 需要开药\n");
@@ -400,7 +341,7 @@ static void doctor_fill_exam_result()
         {
             clear_input();
             printf("输入无效。\n");
-            if (!ask_retry())
+            if (!prompt_yes_no("是否重试？"))
                 return;
             result = 0;
             continue;
@@ -411,33 +352,51 @@ static void doctor_fill_exam_result()
     target->result = (ExamResult)result;
     target->status = STATUS_DONE;
     save_all();
-
     printf("检查结果已填写！\n");
+
     if (result == 1)
     {
         printf("检查正常，无需处理。\n");
-        printf("按任意键返回...");
+        printf("按enter键返回...");
         getchar();
+        return;
     }
-    if (result == 2)
+
+    // result为2或3：执行后循环回到选择，允许追加
+    while (1)
     {
-        printf("需要开药，即将进入开具处方界面。\n");
-        printf("按任意键继续...");
-        getchar();
-        doctor_prescribe(target->record_id, target->patient_id);
-    }
-    if (result == 3)
-    {
-        printf("需要住院，即将进入住院申请界面。\n");
-        printf("按任意键继续...");
-        getchar();
-        doctor_apply_inpatient(target->patient_id);
+        if (result == 2)
+            doctor_prescribe(target->record_id, target->patient_id);
+        else if (result == 3)
+            doctor_apply_inpatient(target->patient_id);
+
+        // 执行完后重新选择
+        printf("\n请选择后续操作：\n");
+        printf("1. 正常，无需更多处理\n");
+        printf("2. 继续开药\n");
+        printf("3. 提交住院申请\n");
+        printf("0. 返回上级菜单\n");
+
+        result = -1;
+        while (result < 0)
+        {
+            printf("请选择: ");
+            if (scanf("%d", &result) != 1 || result < 0 || result > 3)
+            {
+                clear_input();
+                printf("输入无效。\n");
+                result = -1;
+                continue;
+            }
+            clear_input();
+        }
+
+        if (result == 0 || result == 1)
+            break;
     }
 }
 
-// ════════════════════════════════════════
 // 开具处方
-// ════════════════════════════════════════
 
 static void doctor_prescribe(int record_id, int patient_id)
 {
@@ -469,7 +428,7 @@ static void doctor_prescribe(int record_id, int patient_id)
     if (drug_count == 0)
     {
         printf("暂无可开药品。\n");
-        printf("按任意键返回...");
+        printf("按enter键返回...");
         getchar();
         return;
     }
@@ -484,7 +443,7 @@ static void doctor_prescribe(int record_id, int patient_id)
         {
             clear_input();
             printf("输入无效。\n");
-            if (!ask_retry())
+            if (!prompt_yes_no("是否重试？"))
                 return;
             continue;
         }
@@ -506,7 +465,7 @@ static void doctor_prescribe(int record_id, int patient_id)
         if (chosen_drug == NULL)
         {
             printf("未找到该药品，请从列表中选择。\n");
-            if (!ask_retry())
+            if (!prompt_yes_no("是否重试？"))
                 return;
         }
     }
@@ -520,7 +479,7 @@ static void doctor_prescribe(int record_id, int patient_id)
         {
             clear_input();
             printf("输入无效，数量必须大于0。\n");
-            if (!ask_retry())
+            if (!prompt_yes_no("是否重试？"))
                 return;
             quantity = 0;
             continue;
@@ -530,7 +489,7 @@ static void doctor_prescribe(int record_id, int patient_id)
         {
             printf("库存不足，当前库存 %d 盒，请重新输入。\n",
                    chosen_drug->stock);
-            if (!ask_retry())
+            if (!prompt_yes_no("是否重试？"))
                 return;
             quantity = 0;
         }
@@ -541,7 +500,7 @@ static void doctor_prescribe(int record_id, int patient_id)
     if (node == NULL)
     {
         printf("内存分配失败。\n");
-        printf("按任意键返回...");
+        printf("按enter键返回...");
         getchar();
         return;
     }
@@ -571,13 +530,11 @@ static void doctor_prescribe(int record_id, int patient_id)
     printf("处方已开具！药品：%s × %d盒，总价：%.1f元\n",
            chosen_drug->drug_name, quantity, node->price);
     printf("患者缴费后药剂师可发药。\n");
-    printf("按任意键返回...");
+    printf("按enter键返回...");
     getchar();
 }
 
-// ════════════════════════════════════════
 // 提交住院申请
-// ════════════════════════════════════════
 
 static void doctor_apply_inpatient(int patient_id)
 {
@@ -594,7 +551,7 @@ static void doctor_apply_inpatient(int patient_id)
         {
             printf("该患者已有待审核的住院申请（申请ID：%d），无需重复提交。\n",
                    check->apply_id);
-            printf("按任意键返回...");
+            printf("按enter键返回...");
             getchar();
             return;
         }
@@ -608,7 +565,7 @@ static void doctor_apply_inpatient(int patient_id)
     if (!prompt_yes_no("确认提交住院申请？"))
     {
         printf("已取消。\n");
-        printf("按任意键返回...");
+        printf("按enter键返回...");
         getchar();
         return;
     }
@@ -617,7 +574,7 @@ static void doctor_apply_inpatient(int patient_id)
     if (node == NULL)
     {
         printf("内存分配失败。\n");
-        printf("按任意键返回...");
+        printf("按enter键返回...");
         getchar();
         return;
     }
@@ -645,13 +602,11 @@ static void doctor_apply_inpatient(int patient_id)
     save_all();
     printf("住院申请已提交！申请ID：%d\n", node->apply_id);
     printf("请等待管理员审核。\n");
-    printf("按任意键返回...");
+    printf("按enter键返回...");
     getchar();
 }
 
-// ════════════════════════════════════════
 // 接诊患者（核心流程）
-// ════════════════════════════════════════
 
 void doctor_see_patient()
 {
@@ -690,7 +645,7 @@ void doctor_see_patient()
     if (count == 0)
     {
         printf("当前无候诊患者。\n");
-        printf("按任意键返回...");
+        printf("按enter键返回...");
         getchar();
         return;
     }
@@ -705,7 +660,7 @@ void doctor_see_patient()
         {
             clear_input();
             printf("输入无效。\n");
-            if (!ask_retry())
+            if (!prompt_yes_no("是否重试？"))
                 return;
             continue;
         }
@@ -729,7 +684,7 @@ void doctor_see_patient()
         if (target == NULL)
         {
             printf("未找到该挂号记录，或该号已作废。\n");
-            if (!ask_retry())
+            if (!prompt_yes_no("是否重试？"))
                 return;
         }
     }
@@ -751,7 +706,7 @@ void doctor_see_patient()
     if (record == NULL)
     {
         printf("内存分配失败。\n");
-        printf("按任意键返回...");
+        printf("按enter键返回...");
         getchar();
         return;
     }
@@ -823,13 +778,11 @@ void doctor_see_patient()
     }
 
     printf("本次接诊已完成。\n");
-    printf("按任意键返回...");
+    printf("按enter键返回...");
     getchar();
 }
 
-// ════════════════════════════════════════
 // 查看历史病历
-// ════════════════════════════════════════
 
 void doctor_view_history()
 {
@@ -846,7 +799,7 @@ void doctor_view_history()
         {
             clear_input();
             printf("输入无效。\n");
-            if (!ask_retry())
+            if (!prompt_yes_no("是否重试？"))
                 return;
             medical_id = 0;
             continue;
@@ -882,31 +835,55 @@ void doctor_view_history()
     if (count == 0)
         printf("该患者暂无您接诊的病历记录。\n");
 
-    printf("\n按任意键返回...");
+    printf("\n按enter键返回...");
     fflush(stdin);
     getchar();
 }
 
-// ════════════════════════════════════════
 // 医生主菜单
-// ════════════════════════════════════════
 
 void doctor_menu()
 {
     while (1)
     {
+        // 每次显示菜单前检查所属科室是否已被停用
+        {
+            DepartmentNode *chk = dept_list;
+            while (chk != NULL)
+            {
+                if (chk->dept_id == current_user.dept_id)
+                {
+                    if (chk->is_deleted == 1)
+                    {
+                        system("cls");
+                        printf("╔════════════════════════════════════════╗\n");
+                        printf("║              系统通知                  ║\n");
+                        printf("╚════════════════════════════════════════╝\n\n");
+                        printf("您所属的科室【%s】已被管理员停用。\n", chk->dept_name);
+                        printf("您的账号已被强制登出，请联系管理员。\n\n");
+                        printf("按enter键返回登录界面...");
+                        getchar();
+                        current_user.is_logged_in = 0;
+                        return;
+                    }
+                    break;
+                }
+                chk = chk->next;
+            }
+        }
+
         // 每次显示菜单前触发超时检查
         check_timeout();
 
         system("cls");
         printf("╔════════════════════════════════════════╗\n");
-        printf("║  欢迎，%-16s              ║\n", current_user.user_name);
-        printf("║  科室：%-16s              ║\n", get_dept_name(current_user.dept_id));
+        printf("║  欢迎，%-16s                            ║\n", current_user.user_name);
+        printf("║  科室：%-16s                            ║\n", get_dept_name(current_user.dept_id));
         printf("╠════════════════════════════════════════╣\n");
-        printf("║  1. 查看候诊队列                       ║\n");
-        printf("║  2. 接诊患者                           ║\n");
-        printf("║  3. 填写检查结果                       ║\n");
-        printf("║  4. 历史病历查询                       ║\n");
+        printf("║  1. 接诊患者                           ║\n");
+        printf("║  2. 填写检查结果                       ║\n");
+        printf("║  3. 患者病历查询                       ║\n");
+        printf("║  4. 修改密码                           ║\n");
         printf("║  0. 注销登录                           ║\n");
         printf("╚════════════════════════════════════════╝\n");
         printf("\n请输入您的选择: ");
@@ -916,7 +893,7 @@ void doctor_menu()
         {
             clear_input();
             printf("输入无效，请重新输入。\n");
-            printf("按任意键继续...");
+            printf("按enter键继续...");
             getchar();
             continue;
         }
@@ -928,7 +905,7 @@ void doctor_menu()
         if (choice < 1 || choice > 4)
         {
             printf("输入无效，请重新输入。\n");
-            printf("按任意键继续...");
+            printf("按enter键继续...");
             getchar();
             continue;
         }
@@ -936,16 +913,16 @@ void doctor_menu()
         switch (choice)
         {
         case 1:
-            doctor_view_queue();
-            break;
-        case 2:
             doctor_see_patient();
             break;
-        case 3:
+        case 2:
             doctor_fill_exam_result();
             break;
-        case 4:
+        case 3:
             doctor_view_history();
+            break;
+        case 4:
+            change_password();
             break;
         }
     }

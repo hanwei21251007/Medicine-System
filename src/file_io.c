@@ -84,14 +84,15 @@ void load_users_from_file()
             StaffNode *node = (StaffNode *)malloc(sizeof(StaffNode));
             if (node == NULL)
                 continue;
-            int role, title;
-            if (sscanf(line, "STAFF,%d,%49[^,],%49[^,],%d,%d,%d,",
+            int role, title, is_deleted;
+            if (sscanf(line, "STAFF,%d,%49[^,],%49[^,],%d,%d,%d,%d",
                        &node->id, node->password, node->name,
-                       &role, &title, &node->dept_id) == 6)
+                       &role, &title, &node->dept_id, &is_deleted) == 7)
             {
                 node->role = (UserRole)role;
                 node->title = (DoctorTitle)title;
                 node->next = NULL;
+                node->is_deleted = is_deleted; // 读取时默认正常状态
                 // 追加到链表尾
                 if (staff_list == NULL)
                 {
@@ -155,14 +156,14 @@ void save_users_to_file()
         return;
     }
 
-    fprintf(fp, "# type,id,password,name,role,title,dept_id,id_card\n");
+    fprintf(fp, "# type,id,password,name,role,title,dept_id,is_deleted\n");
 
     StaffNode *s = staff_list;
     while (s != NULL)
     {
-        fprintf(fp, "STAFF,%d,%s,%s,%d,%d,%d,\n",
+        fprintf(fp, "STAFF,%d,%s,%s,%d,%d,%d,%d\n",
                 s->id, s->password, s->name,
-                (int)s->role, (int)s->title, s->dept_id);
+                (int)s->role, (int)s->title, s->dept_id, s->is_deleted);
         s = s->next;
     }
 
@@ -199,8 +200,8 @@ void load_departments()
         if (node == NULL)
             continue;
 
-        if (sscanf(line, "%d,%49[^,],%f",
-                   &node->dept_id, node->dept_name, &node->base_reg_fee) == 3)
+        if (sscanf(line, "%d,%49[^,],%f,%d",
+                   &node->dept_id, node->dept_name, &node->base_reg_fee, &node->is_deleted) == 4)
         {
             node->next = NULL;
             if (dept_list == NULL)
@@ -222,7 +223,24 @@ void load_departments()
     }
     fclose(fp);
 }
-
+void save_departments()
+{
+    FILE *fp = fopen("data/departments.txt", "w");
+    if (fp == NULL)
+    {
+        printf("无法打开 departments.txt 进行写入。\n");
+        return;
+    }
+    fprintf(fp, "# dept_id,dept_name,base_reg_fee,is_deleted\n");
+    DepartmentNode *cur = dept_list;
+    while (cur != NULL)
+    {
+        fprintf(fp, "%d,%s,%.1f,%d\n",
+                cur->dept_id, cur->dept_name, cur->base_reg_fee, cur->is_deleted);
+        cur = cur->next;
+    }
+    fclose(fp);
+}
 // 检查项目（只读）
 
 void load_exam_items()
@@ -932,6 +950,7 @@ void load_all()
 void save_all()
 {
     save_users_to_file();
+    save_departments();
     save_drugs();
     save_rooms();
     save_registrations();
@@ -1061,33 +1080,89 @@ void clear_input()
         ;
 }
 
-// yes/no 选择
-int prompt_choice(const char *prompt, const char *options[], int count)
+// 获取用户选择
+int get_choice(int min_choice, int max_choice)
 {
-    printf("\n%s\n", prompt);
-    for (int i = 0; i < count; i++)
-    {
-        printf("  %d. %s\n", i + 1, options[i]);
-    }
-    printf("请输入选项(1-%d): ", count);
-
+    char buf[64];
     int choice;
-    while (getchar() != '\n')
-        ;
-    if (scanf("%d", &choice) != 1)
-    {
-        while (getchar() != '\n')
-            ;
-        return -1;
-    }
-    while (getchar() != '\n')
-        ;
 
-    if (choice < 1 || choice > count)
-        return -1;
-    return choice - 1;
+    while (1)
+    {
+        // 读取整行，防止残留字符污染下次输入
+        if (fgets(buf, sizeof(buf), stdin) == NULL)
+        {
+            // EOF / 流错误：安全退出
+            return min_choice - 1;
+        }
+
+        // 截断过长行（缓冲区末尾没有 '\n' 说明行被截断）
+        size_t len = strlen(buf);
+        if (len > 0 && buf[len - 1] != '\n')
+        {
+            // 丢弃剩余输入直到换行
+            int c;
+            while ((c = getchar()) != '\n' && c != EOF)
+                ;
+            printf("  输入过长，请重新输入: ");
+            continue;
+        }
+
+        // 去掉末尾换行
+        buf[strcspn(buf, "\n")] = '\0';
+
+        // 去除首尾空格，提取中间内容
+        const char *p = buf;
+        while (*p == ' ')
+            p++; // 跳过前导空格
+
+        const char *end = p + strlen(p) - 1;
+        while (end >= p && *end == ' ')
+            end--; // 去掉尾部空格
+
+        // 空行
+        if (end < p)
+        {
+            printf("  输入不能为空，请重新输入: ");
+            continue;
+        }
+
+        // 检查中间（去空格后）是否全为数字
+        int digit_count = 0;
+        int valid = 1;
+        for (const char *q = p; q <= end; q++)
+        {
+            if (isdigit((unsigned char)*q))
+            {
+                digit_count++;
+            }
+            else
+            {
+                // 中间出现非数字字符（含中间空格）
+                valid = 0;
+                break;
+            }
+        }
+
+        if (!valid || digit_count == 0)
+        {
+            printf("  无效输入，请只输入数字序号: ");
+            continue;
+        }
+
+        // 转换并范围检查
+        choice = atoi(p);
+        if (choice < min_choice || choice > max_choice)
+        {
+            printf("  序号超出范围（%d-%d），请重新输入: ",
+                   min_choice, max_choice);
+            continue;
+        }
+
+        return choice;
+    }
 }
 
+// yes/no 选择
 int prompt_yes_no(const char *prompt)
 {
     char c;
@@ -1115,11 +1190,12 @@ int prompt_yes_no(const char *prompt)
     }
 }
 
-//名字是否合法
+// 名字是否合法
 int is_valid_name(const char *s)
 {
     int len = strlen(s);
-    if (len == 0) return 0;
+    if (len == 0)
+        return 0;
 
     int i = 0;
     int last_was_space = 0;
@@ -1131,9 +1207,11 @@ int is_valid_name(const char *s)
 
         if (ch >= 0x81 && ch <= 0xFE)
         {
-            if (i + 1 >= len) return 0;
+            if (i + 1 >= len)
+                return 0;
             unsigned char ch2 = (unsigned char)s[i + 1];
-            if (ch2 < 0x40 || ch2 > 0xFE) return 0;
+            if (ch2 < 0x40 || ch2 > 0xFE)
+                return 0;
             has_chinese = 1;
             last_was_space = 0;
             i += 2;
@@ -1146,9 +1224,12 @@ int is_valid_name(const char *s)
         }
         else if (ch == ' ')
         {
-            if (has_chinese) return 0;
-            if (last_was_space) return 0;
-            if (i == 0) return 0;
+            if (has_chinese)
+                return 0;
+            if (last_was_space)
+                return 0;
+            if (i == 0)
+                return 0;
             last_was_space = 1;
             i++;
         }
@@ -1158,15 +1239,146 @@ int is_valid_name(const char *s)
         }
     }
 
-    if (last_was_space) return 0;
-    if (has_chinese && has_english) return 0;
+    if (last_was_space)
+        return 0;
+    if (has_chinese && has_english)
+        return 0;
     return 1;
 }
 
 int is_valid_password(const char *s)
 {
-    if (strlen(s) == 0) return 0;
+    if (strlen(s) == 0)
+        return 0;
     for (int i = 0; s[i]; i++)
-        if (s[i] == ' ') return 0;
+        if (s[i] == ' ')
+            return 0;
     return 1;
+}
+void change_password()
+{   
+    extern CurrentUser current_user;
+    system("cls");
+    printf("╔════════════════════════════════════════╗\n");
+    printf("║              修改密码                  ║\n");
+    printf("╚════════════════════════════════════════╝\n\n");
+
+    char old_pwd[50], new_pwd[50], confirm_pwd[50];
+
+    // 第一步：验证旧密码
+    printf("请输入当前密码: ");
+    fgets(old_pwd, sizeof(old_pwd), stdin);
+    old_pwd[strcspn(old_pwd, "\r\n")] = '\0';
+    int verified = 0;
+
+    if (current_user.user_role == ROLE_PATIENT)
+    {
+        PatientNode *cur = patient_list;
+        while (cur != NULL)
+        {
+            if (cur->medical_id == current_user.user_id)
+            {
+                if (strcmp(cur->password, old_pwd) == 0)
+                    verified = 1;
+                break;
+            }
+            cur = cur->next;
+        }
+    }
+    else
+    {
+        StaffNode *cur = staff_list;
+        while (cur != NULL)
+        {
+            if (cur->id == current_user.user_id)
+            {
+                if (strcmp(cur->password, old_pwd) == 0)
+                    verified = 1;
+                break;
+            }
+            cur = cur->next;
+        }
+    }
+
+    if (!verified)
+    {
+        printf("当前密码错误，无法修改。\n");
+        if (!prompt_yes_no("是否重新尝试？"))
+            return;
+        // 重试：递归调用自身重新走完整流程
+        change_password();
+        return;
+    }
+
+    // 第二步：输入并确认新密码
+    while (1)
+    {
+        printf("请输入新密码: ");
+        fgets(new_pwd, sizeof(new_pwd), stdin);
+        new_pwd[strcspn(new_pwd, "\r\n")] = '\0';
+
+        if (!is_valid_password(new_pwd))
+        {
+            printf("密码不合法（不能为空或包含空格），请重新输入。\n");
+            if (!prompt_yes_no("是否重新尝试？"))
+                return;
+            continue;
+        }
+
+        if (strcmp(new_pwd, old_pwd) == 0)
+        {
+            printf("新密码不能与当前密码相同，请重新输入。\n");
+            if (!prompt_yes_no("是否重新尝试？"))
+                return;
+            continue;
+        }
+
+        printf("请再次输入新密码确认: ");
+        fgets(confirm_pwd, sizeof(confirm_pwd), stdin);
+        confirm_pwd[strcspn(confirm_pwd, "\r\n")] = '\0';
+
+        if (strcmp(new_pwd, confirm_pwd) != 0)
+        {
+            printf("两次输入不一致，请重新输入。\n");
+            if (!prompt_yes_no("是否重新尝试？"))
+                return;
+            continue;
+        }
+        break;
+    }
+
+    // 第三步：写入链表并持久化保存
+    if (current_user.user_role == ROLE_PATIENT)
+    {
+        PatientNode *cur = patient_list;
+        while (cur != NULL)
+        {
+            if (cur->medical_id == current_user.user_id)
+            {
+                strncpy(cur->password, new_pwd, sizeof(cur->password) - 1);
+                cur->password[sizeof(cur->password) - 1] = '\0';
+                break;
+            }
+            cur = cur->next;
+        }
+    }
+    else
+    {
+        StaffNode *cur = staff_list;
+        while (cur != NULL)
+        {
+            if (cur->id == current_user.user_id)
+            {
+                strncpy(cur->password, new_pwd, sizeof(cur->password) - 1);
+                cur->password[sizeof(cur->password) - 1] = '\0';
+                break;
+            }
+            cur = cur->next;
+        }
+    }
+
+    save_all();
+    printf("\n密码修改成功！下次登录请使用新密码。\n");
+    printf("按enter键返回...");
+    getchar();
 }

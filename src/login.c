@@ -7,10 +7,13 @@
 // 链表头指针和文件操作函数，定义在 file_io.c
 extern StaffNode *staff_list;
 extern PatientNode *patient_list;
+extern DepartmentNode *dept_list;
 extern int generate_medical_id();
 extern void save_users_to_file();
 extern int is_valid_name(const char *s);
 extern int is_valid_password(const char *s);
+extern int get_choice(int min_choice, int max_choice);
+extern int prompt_yes_no(const char *prompt);
 
 // 前向声明
 int patient_register_with_id(const char *id_card_input);
@@ -19,38 +22,49 @@ int patient_register_with_id(const char *id_card_input);
 CurrentUser current_user = {0, 0, "", 0};
 
 // 登录菜单
-
 int show_login_menu()
 {
     system("cls");
     printf("╔════════════════════════════════════════╗\n");
-    printf("║        医疗管理系统 - 登录界面           ║\n");
+    printf("║        医疗管理系统 - 登录界面          ║\n");
     printf("║                                        ║\n");
-    printf("║         请选择您的身份：                ║\n");
+    printf("║         请选择您的身份：               ║\n");
     printf("║                                        ║\n");
-    printf("║         1. 管理员                       ║\n");
-    printf("║         2. 医生                         ║\n");
-    printf("║         3. 药剂师                       ║\n");
-    printf("║         4. 患者                         ║\n");
-    printf("║         5. 退出系统                     ║\n");
+    printf("║         1. 管理员                      ║\n");
+    printf("║         2. 医护人员                    ║\n");
+    printf("║         3. 患者                        ║\n");
+    printf("║         4. 退出系统                    ║\n");
     printf("║                                        ║\n");
     printf("╚════════════════════════════════════════╝\n");
-    printf("\n请输入您的选择 (1-5): ");
-
-    int choice;
-    scanf("%d", &choice);
-    getchar();
-    if (choice < 1 || choice > 5)
-    {
-        printf("\n无效选择，请输入 1-5 之间的数字。\n");
-        printf("按任意键继续...");
-        getchar();
-    }
-    return choice;
+    printf("\n请输入您的选择 (1-4): ");
+    return get_choice(1, 4);
 }
 
-// 员工登录（管理员 / 医生 / 药剂师）
+// 医护人员身份选择子菜单，返回对应 UserRole，取消返回 0
+int show_staff_submenu()
+{
+    system("cls");
+    printf("╔════════════════════════════════════════╗\n");
+    printf("║          请选择医护人员身份             ║\n");
+    printf("║                                        ║\n");
+    printf("║         1. 医生                        ║\n");
+    printf("║         2. 药剂师                      ║\n");
+    printf("║         3. 病房员工                ║\n");
+    printf("║         0. 返回上级菜单                ║\n");
+    printf("║                                        ║\n");
+    printf("╚════════════════════════════════════════╝\n");
+    printf("\n请输入您的选择 (0-3): ");
+    int c = get_choice(0, 3);
+    switch (c)
+    {
+    case 1: return ROLE_DOCTOR;
+    case 2: return ROLE_PHARMACIST;
+    case 3: return ROLE_WARD_CLERK;
+    default: return 0;
+    }
+}
 
+// 员工登录（管理员 / 医生 / 药剂师 / 病房员工）
 int staff_login(UserRole user_role)
 {
     current_user.is_logged_in = 0;
@@ -59,8 +73,10 @@ int staff_login(UserRole user_role)
     char password[50];
 
     printf("\n请输入工号: ");
-    scanf("%d", &id);
+    char id_buf[32];
+    scanf("%31s", id_buf);
     getchar();
+    id = atoi(id_buf);
 
     printf("请输入密码: ");
     scanf("%49s", password);
@@ -71,18 +87,38 @@ int staff_login(UserRole user_role)
     {
         if (cur->id == id &&
             strcmp(cur->password, password) == 0 &&
-            cur->role == user_role)
+            cur->role == user_role && cur->is_deleted == 0)
         {
+            // 医生登录时额外检查所属科室是否已停用
+            if (cur->role == ROLE_DOCTOR)
+            {
+                DepartmentNode *d = dept_list;
+                while (d != NULL)
+                {
+                    if (d->dept_id == cur->dept_id)
+                    {
+                        if (d->is_deleted == 1)
+                        {
+                            printf("\n登录失败！您所属的科室【%s】已被停用，请联系管理员。\n", d->dept_name);
+                            printf("按enter键返回...");
+                            getchar();
+                            return 0;
+                        }
+                        break;
+                    }
+                    d = d->next;
+                }
+            }
 
             current_user.is_logged_in = 1;
-            current_user.user_id = cur->id;
+            current_user.user_id      = cur->id;
             strncpy(current_user.user_name, cur->name, sizeof(current_user.user_name) - 1);
             current_user.user_role = cur->role;
-            current_user.dept_id = cur->dept_id;
-            current_user.title = cur->title;
+            current_user.dept_id   = cur->dept_id;
+            current_user.title     = cur->title;
 
             printf("\n登录成功！欢迎 %s\n", current_user.user_name);
-            printf("按任意键继续...");
+            printf("按enter键继续...");
             getchar();
             return 1;
         }
@@ -90,62 +126,79 @@ int staff_login(UserRole user_role)
     }
 
     printf("\n登录失败！工号、密码或身份错误。\n");
-    printf("按任意键返回...");
+    printf("按enter键返回...");
     getchar();
     return 0;
 }
 
 // 患者登录
-// 先判断身份证号是否注册，未注册则引导注册，已注册则验证密码
-// 验证通过后只将 medical_id 存入 current_user，身份证号不进入全局状态
-
 int patient_login()
 {
     current_user.is_logged_in = 0;
 
+    char buf[128];
     char id_card_input[19];
     char password[50];
 
     printf("\n请输入身份证号: ");
-    fgets(id_card_input, sizeof(id_card_input), stdin);
-    id_card_input[strcspn(id_card_input, "\r\n")] = '\0';
-
-    // 验证长度
-    int id_len = strlen(id_card_input);
-    if (id_len != 18)
-    {
-        printf("\n身份证号格式错误，应为数字18位。\n");
-        printf("按任意键返回...");
-        getchar();
+    if (fgets(buf, sizeof(buf), stdin) == NULL)
         return 0;
-    }
-
-    // 验证前17位全为数字，最后一位为数字或X，其余任何字符（含空格符号）均报错
-    int i;
-    for (i = 0; i < 17; i++)
+    if (strchr(buf, '\n') == NULL)
     {
-        if (id_card_input[i] < '0' || id_card_input[i] > '9')
+        int ch;
+        while ((ch = getchar()) != '\n' && ch != EOF)
+            ;
+    }
+    buf[strcspn(buf, "\r\n")] = '\0';
+
+    int i;
+    for (i = 0; buf[i] != '\0'; i++)
+    {
+        if (buf[i] == ' ' || buf[i] == '\t')
         {
-            printf("\n身份证号格式错误，请重新输入。\n");
-            printf("按任意键返回...");
-            while (getchar() != '\n')
-                ;
+            printf("\n身份证号不能含有空格，请重新输入。\n");
+            printf("按enter键返回...");
             getchar();
             return 0;
         }
     }
-    if (id_card_input[17] != 'X' && id_card_input[17] != 'x' &&
-        (id_card_input[17] < '0' || id_card_input[17] > '9'))
+
+    int id_len = (int)strlen(buf);
+    if (id_len != 18)
     {
-        printf("\n身份证号格式错误，最后一位应为数字或X。\n");
-        printf("按任意键返回...");
-        while (getchar() != '\n')
-            ;
+        printf("\n身份证号长度错误（当前%d位），必须为18位。\n", id_len);
+        printf("按enter键返回...");
         getchar();
         return 0;
     }
 
-    // 查链表判断是否注册过
+    for (i = 0; i < 17; i++)
+    {
+        if (buf[i] < '0' || buf[i] > '9')
+        {
+            printf("\n身份证号格式错误，前17位必须全为数字（第%d位非法字符'%c'）。\n",
+                   i + 1, buf[i]);
+            printf("按enter键返回...");
+            getchar();
+            return 0;
+        }
+    }
+
+    char last = buf[17];
+    if (last != 'X' && last != 'x' && (last < '0' || last > '9'))
+    {
+        printf("\n身份证号格式错误，最后一位只能为数字或X（当前为'%c'）。\n", last);
+        printf("按enter键返回...");
+        getchar();
+        return 0;
+    }
+
+    if (last == 'x')
+        buf[17] = 'X';
+
+    strncpy(id_card_input, buf, sizeof(id_card_input) - 1);
+    id_card_input[18] = '\0';
+
     PatientNode *cur = patient_list;
     while (cur)
     {
@@ -154,7 +207,6 @@ int patient_login()
         cur = cur->next;
     }
 
-    // 未找到 → 引导注册
     if (!cur)
     {
         if (prompt_yes_no("未检测到注册信息，是否立即注册？"))
@@ -164,7 +216,6 @@ int patient_login()
         return 0;
     }
 
-    // 已注册 → 验证密码
     printf("请输入密码: ");
     scanf("%49s", password);
     getchar();
@@ -172,26 +223,23 @@ int patient_login()
     if (strcmp(cur->password, password) == 0 && cur->is_deleted == 0)
     {
         current_user.is_logged_in = 1;
-        current_user.user_id = cur->medical_id;
-        strncpy(current_user.user_name, cur->name,
-                sizeof(current_user.user_name) - 1);
+        current_user.user_id      = cur->medical_id;
+        strncpy(current_user.user_name, cur->name, sizeof(current_user.user_name) - 1);
         current_user.user_role = ROLE_PATIENT;
 
         printf("\n登录成功！欢迎 %s\n", current_user.user_name);
-        printf("按任意键继续...");
+        printf("按enter键继续...");
         getchar();
         return 1;
     }
 
     printf("\n密码错误或用户已注销，请重试。\n");
-    printf("按任意键返回...");
+    printf("按enter键返回...");
     getchar();
     return 0;
 }
 
 // 患者注册
-// 接收已输入的身份证号，补充姓名和密码，生成病历号后写回文件
-
 int patient_register_with_id(const char *id_card_input)
 {
     char name[50], password[50];
@@ -205,14 +253,13 @@ int patient_register_with_id(const char *id_card_input)
     printf("╚════════════════════════════════════════╝\n\n");
     printf("  身份证号：%s\n\n", id_card);
 
-    // 检查是否已注册（正常不会走到这里，防御性保留）
     PatientNode *cur = patient_list;
     while (cur)
     {
         if (strcmp(cur->id_card, id_card) == 0)
         {
             printf("\n该身份证号已注册，请直接登录。\n");
-            printf("按任意键返回...");
+            printf("按enter键返回...");
             getchar();
             return 0;
         }
@@ -239,26 +286,24 @@ int patient_register_with_id(const char *id_card_input)
         printf("密码无效，不允许包含空格。\n");
     }
 
-    // 创建新节点
     PatientNode *node = (PatientNode *)malloc(sizeof(PatientNode));
     if (!node)
     {
         printf("\n内存分配失败，注册取消。\n");
-        printf("按任意键返回...");
+        printf("按enter键返回...");
         getchar();
         return 0;
     }
-    node->is_deleted = 0; // 新用户默认未删除
-    node->medical_id = generate_medical_id();
-    strncpy(node->id_card, id_card, sizeof(node->id_card) - 1);
-    strncpy(node->name, name, sizeof(node->name) - 1);
+    node->is_deleted  = 0;
+    node->medical_id  = generate_medical_id();
+    strncpy(node->id_card,  id_card,  sizeof(node->id_card)  - 1);
+    strncpy(node->name,     name,     sizeof(node->name)     - 1);
     strncpy(node->password, password, sizeof(node->password) - 1);
-    node->id_card[sizeof(node->id_card) - 1] = '\0';
-    node->name[sizeof(node->name) - 1] = '\0';
+    node->id_card[sizeof(node->id_card)   - 1] = '\0';
+    node->name[sizeof(node->name)         - 1] = '\0';
     node->password[sizeof(node->password) - 1] = '\0';
     node->next = NULL;
 
-    // 追加到链表尾
     if (!patient_list)
     {
         patient_list = node;
@@ -271,88 +316,22 @@ int patient_register_with_id(const char *id_card_input)
         tail->next = node;
     }
 
-    // 立即持久化
     save_users_to_file();
 
     printf("\n注册成功！\n");
     printf("  您的病历号为：%d\n", node->medical_id);
     printf("  今后登录请使用【身份证号 + 密码】。\n");
-    printf("\n按任意键返回登录界面...");
+    printf("\n按enter键返回登录界面...");
     getchar();
     return 1;
 }
 
-// 主菜单（根据角色显示对应菜单）
-
-void show_main_menu()
-{
-    system("cls");
-
-    printf("╔════════════════════════════════════════╗\n");
-    printf("║  欢迎，%-16s                ║\n", current_user.user_name);
-    printf("╚════════════════════════════════════════╝\n\n");
-
-    switch (current_user.user_role)
-    {
-
-    case ROLE_ADMIN:
-        printf("┌─ 管理员菜单 ─────────────────────────┐\n");
-        printf("│ 1. 科室管理                            │\n");
-        printf("│ 2. 药品管理                            │\n");
-        printf("│ 3. 医生管理                            │\n");
-        printf("│ 4. 患者信息查询                        │\n");
-        printf("│ 5. 统计报表                            │\n");
-        printf("│ 0. 注销登录                            │\n");
-        printf("└────────────────────────────────────────┘\n");
-        break;
-
-    case ROLE_DOCTOR:
-        printf("┌─ 医生菜单 ───────────────────────────┐\n");
-        printf("│ 1. 查看候诊患者（按病历号）            │\n");
-        printf("│ 2. 接诊患者                            │\n");
-        printf("│ 3. 开具处方                            │\n");
-        printf("│ 4. 患者历史记录                        │\n");
-        printf("│ 0. 注销登录                            │\n");
-        printf("└────────────────────────────────────────┘\n");
-        break;
-
-    case ROLE_PHARMACIST:
-        printf("┌─ 药剂师菜单 ─────────────────────────┐\n");
-        printf("│ 1. 待发药处方（按病历号核对）          │\n");
-        printf("│ 2. 发药操作                            │\n");
-        printf("│ 3. 药品库存查询                        │\n");
-        printf("│ 4. 库存预警                            │\n");
-        printf("│ 0. 注销登录                            │\n");
-        printf("└────────────────────────────────────────┘\n");
-        break;
-
-    case ROLE_PATIENT:
-        printf("┌─ 患者菜单 ───────────────────────────┐\n");
-        printf("│  您的病历号：%-6d                    │\n",
-               current_user.user_id);
-        printf("├────────────────────────────────────────┤\n");
-        printf("│ 1. 门诊挂号                            │\n");
-        printf("│ 2. 查看就诊记录                        │\n");
-        printf("│ 3. 查看处方与缴费                      │\n");
-        printf("│ 4. 住院信息查询                        │\n");
-        printf("│ 0. 注销登录                            │\n");
-        printf("└────────────────────────────────────────┘\n");
-        break;
-
-    default:
-        break;
-    }
-
-    printf("\n请输入您的选择: ");
-}
-
 // 注销
-
 void user_logout()
 {
     system("cls");
     printf("您已成功注销！感谢使用医疗管理系统。\n");
-    printf("按任意键返回登录界面...");
+    printf("按enter键返回登录界面...");
     getchar();
     current_user.is_logged_in = 0;
 }

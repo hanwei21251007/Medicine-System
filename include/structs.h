@@ -11,7 +11,9 @@ typedef enum {
     ROLE_ADMIN = 1,        // 管理员
     ROLE_DOCTOR = 2,       // 医生
     ROLE_PHARMACIST = 3,   // 药剂师
-    ROLE_PATIENT = 4       // 患者
+    ROLE_WARD_CLERK = 4,   // 病房员工
+    ROLE_PATIENT    = 5      // 患者
+
 } UserRole;
 
 // 职称 
@@ -36,7 +38,8 @@ typedef enum {
 typedef enum {
     STATUS_PENDING_PAY  = 1,   // 待缴费
     STATUS_PENDING_DO   = 2,   // 已缴费待执行
-    STATUS_DONE         = 3    // 已完成
+    STATUS_DONE         = 3,   // 已完成
+    STATUS_CANCELLED    = 4    // 已取消
 } ItemStatus;
  
 // 检查结果 
@@ -56,6 +59,7 @@ typedef struct StaffNode {
     UserRole     role;
     DoctorTitle  title;          // 仅医生使用，其他角色填0
     int          dept_id;        // 所属科室ID，仅医生使用
+    int          is_deleted;    // 0=正常, 1=已删除（逻辑删除）
     struct StaffNode *next;
 } StaffNode;
  
@@ -77,6 +81,7 @@ typedef struct DepartmentNode {
     int   dept_id;
     char  dept_name[50];
     float base_reg_fee;          // 挂号基础费用
+    int   is_deleted;          // 0=正常, 1=已删除（逻辑删除）
     struct DepartmentNode *next;
 } DepartmentNode;
  
@@ -202,7 +207,7 @@ typedef struct {
 } CurrentUser;
  
 // ===== 工具函数 =====
-int prompt_choice(const char *prompt, const char *options[], int count);
 int prompt_yes_no(const char *prompt);
+float calc_current_fee(InpatientNode *ip);
 
 #endif
